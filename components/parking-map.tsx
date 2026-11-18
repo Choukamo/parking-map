@@ -1,9 +1,17 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import type { ParkingAvailability, ParkingsResponse } from "@/types/parking";
+import {
+  calculateDistanceKm,
+  formatDistance,
+  getGoogleMapsDirectionsUrl,
+  sortParkings,
+  type SortOption,
+  type Coordinates,
+} from "@/lib/utils/geo";
 
 const PARIS_CENTER: [number, number] = [48.8566, 2.3522];
 
@@ -21,17 +29,34 @@ function createParkingIcon(isSelected: boolean) {
   });
 }
 
-function MapController({
-  target,
-}: {
-  target: { latitude: number; longitude: number } | null;
-}) {
+function createUserIcon() {
+  return L.divIcon({
+    className: "custom-user-pin-container",
+    html: `
+      <div class="user-marker" title="Votre position actuelle">
+        <div class="user-pulse"></div>
+        <div class="user-core"></div>
+      </div>
+    `,
+    iconSize: [24, 24],
+    iconAnchor: [12, 12],
+    popupAnchor: [0, -14],
+  });
+}
+
+interface MapTarget {
+  latitude: number;
+  longitude: number;
+  zoom?: number;
+}
+
+function MapController({ target }: { target: MapTarget | null }) {
   const map = useMap();
 
   useEffect(() => {
     if (target) {
-      map.flyTo([target.latitude, target.longitude], 15, {
-        duration: 1,
+      map.flyTo([target.latitude, target.longitude], target.zoom || 15, {
+        duration: 1.1,
       });
     }
   }, [target, map]);
@@ -45,6 +70,13 @@ export function ParkingMap() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [selectedParking, setSelectedParking] = useState<ParkingAvailability | null>(null);
+
+  // Position utilisateur & géolocalisation
+  const [userLocation, setUserLocation] = useState<Coordinates | null>(null);
+  const [geoLoading, setGeoLoading] = useState(false);
+  const [geoError, setGeoError] = useState<string | null>(null);
+  const [sortOption, setSortOption] = useState<SortOption>("default");
+  const [mapTarget, setMapTarget] = useState<MapTarget | null>(null);
 
   useEffect(() => {
     async function loadParkings() {
@@ -71,20 +103,77 @@ export function ParkingMap() {
     loadParkings();
   }, []);
 
-  const filteredParkings = useMemo(() => {
-    if (!search.trim()) return parkings;
-    const q = search.toLowerCase();
-    return parkings.filter(
-      (p) =>
-        p.name.toLowerCase().includes(q) ||
-        (p.address && p.address.toLowerCase().includes(q)) ||
-        (p.operator && p.operator.toLowerCase().includes(q)) ||
-        (p.arrondissement && p.arrondissement.toLowerCase().includes(q))
+  const handleGeolocate = useCallback(() => {
+    if (typeof window === "undefined" || !navigator.geolocation) {
+      setGeoError("La géolocalisation n'est pas supportée par votre navigateur.");
+      return;
+    }
+
+    setGeoLoading(true);
+    setGeoError(null);
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const coords: Coordinates = {
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+        };
+        setUserLocation(coords);
+        setMapTarget({
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+          zoom: 14,
+        });
+        setSortOption("distance-asc");
+        setGeoLoading(false);
+      },
+      (err) => {
+        setGeoLoading(false);
+        if (err.code === err.PERMISSION_DENIED) {
+          setGeoError("Autorisation refusée. Activez la géolocalisation dans votre navigateur.");
+        } else if (err.code === err.TIMEOUT) {
+          setGeoError("Délai de géolocalisation dépassé.");
+        } else {
+          setGeoError("Impossible de déterminer votre position.");
+        }
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 30000,
+      }
     );
-  }, [parkings, search]);
+  }, []);
+
+  const handleSortChange = (newSort: SortOption) => {
+    setSortOption(newSort);
+    if ((newSort === "distance-asc" || newSort === "distance-desc") && !userLocation) {
+      handleGeolocate();
+    }
+  };
+
+  const processedParkings = useMemo(() => {
+    let list = parkings;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          (p.address && p.address.toLowerCase().includes(q)) ||
+          (p.operator && p.operator.toLowerCase().includes(q)) ||
+          (p.arrondissement && p.arrondissement.toLowerCase().includes(q))
+      );
+    }
+    return sortParkings(list, sortOption, userLocation);
+  }, [parkings, search, sortOption, userLocation]);
 
   const handleSelectParking = (parking: ParkingAvailability) => {
     setSelectedParking(parking);
+    setMapTarget({
+      latitude: parking.location.latitude,
+      longitude: parking.location.longitude,
+      zoom: 15,
+    });
   };
 
   return (
@@ -135,18 +224,38 @@ export function ParkingMap() {
               )}
             </div>
           </div>
+
+          {/* Bouton Géolocalisation "Autour de moi" */}
+          <div className="geoloc-section">
+            <button
+              type="button"
+              className={`geoloc-btn ${userLocation ? "active" : ""}`}
+              onClick={handleGeolocate}
+              disabled={geoLoading}
+            >
+              <span className="geoloc-icon" aria-hidden="true">
+                {geoLoading ? "⏳" : "📍"}
+              </span>
+              <span>
+                {geoLoading
+                  ? "Localisation en cours..."
+                  : userLocation
+                  ? "Autour de vous (activé)"
+                  : "Afficher les parkings autour de moi"}
+              </span>
+            </button>
+            {geoError && <p className="geoloc-error">{geoError}</p>}
+          </div>
         </div>
 
+        {/* Section Recherche & Tris */}
         <div className="search-section">
-          <label htmlFor="parking-search" className="sr-only">
-            Rechercher un parking
-          </label>
           <div className="search-input-wrap">
             <input
               id="parking-search"
               type="search"
               className="search-input"
-              placeholder="Rechercher par nom, rue, arrdt, Indigo..."
+              placeholder="Rechercher (nom, rue, Indigo, 15e...)"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -161,16 +270,49 @@ export function ParkingMap() {
               </button>
             )}
           </div>
+
+          {/* Sélecteur de Tri */}
+          <div className="sort-controls">
+            <label htmlFor="sort-select" className="sort-label">
+              Trier par :
+            </label>
+            <select
+              id="sort-select"
+              className="sort-select"
+              value={sortOption}
+              onChange={(e) => handleSortChange(e.target.value as SortOption)}
+            >
+              <option value="default">Défaut (recensement officiel)</option>
+              <option value="distance-asc">📍 Plus proche</option>
+              <option value="distance-desc">📍 Plus éloigné</option>
+              <option value="price-asc">💶 Moins cher (tarif 1h)</option>
+              <option value="price-desc">💶 Plus cher (tarif 1h)</option>
+              <option value="capacity-desc">🚗 Plus de places (capacité)</option>
+            </select>
+          </div>
+
           <div className="search-meta">
             <span>
-              {filteredParkings.length} parking{filteredParkings.length > 1 ? "s" : ""} affiché{filteredParkings.length > 1 ? "s" : ""}
+              {processedParkings.length} parking{processedParkings.length > 1 ? "s" : ""}
             </span>
+            {userLocation && (
+              <span className="user-located-tag">Position détectée</span>
+            )}
           </div>
         </div>
 
+        {/* Liste des parkings */}
         <div className="parking-list" role="list">
-          {filteredParkings.map((p) => {
+          {processedParkings.map((p) => {
             const isSelected = selectedParking?.id === p.id;
+            const distanceText =
+              p.distanceKm !== undefined ? formatDistance(p.distanceKm) : null;
+            const directionsUrl = getGoogleMapsDirectionsUrl(
+              p.location.latitude,
+              p.location.longitude,
+              p.name
+            );
+
             return (
               <article
                 key={p.id}
@@ -191,22 +333,52 @@ export function ParkingMap() {
                     <span className="parking-operator-badge">{p.operator}</span>
                   )}
                 </div>
+
                 {p.address && <p className="parking-item-addr">{p.address}</p>}
-                <div className="parking-item-footer">
+
+                <div className="parking-item-badges">
+                  {distanceText && (
+                    <span className="parking-distance-badge" title="Distance depuis votre position">
+                      📍 {distanceText}
+                    </span>
+                  )}
                   {p.capacity ? (
                     <span className="parking-capacity-badge">
                       {p.capacity} places
                     </span>
-                  ) : (
-                    <span className="parking-capacity-badge muted">
-                      Capacité non renseignée
-                    </span>
-                  )}
+                  ) : null}
                   {p.pricing?.oneHour ? (
                     <span className="parking-price">
                       {p.pricing.oneHour.toFixed(2)} € / 1h
                     </span>
-                  ) : null}
+                  ) : (
+                    <span className="parking-price muted">Prix 1h N/C</span>
+                  )}
+                </div>
+
+                <div className="parking-item-actions">
+                  <a
+                    href={directionsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="itinerary-quick-btn"
+                    title="Ouvrir l'itinéraire Google Maps"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <polygon points="3 11 22 2 13 21 11 13 3 11" />
+                    </svg>
+                    <span>Itinéraire</span>
+                  </a>
                 </div>
               </article>
             );
@@ -217,11 +389,11 @@ export function ParkingMap() {
           <p className="legend-title">Légende & Transparence</p>
           <div className="legend-row">
             <span className="legend-marker official" aria-hidden="true" />
-            <span>Donnée officielle de référence (Ville de Paris)</span>
+            <span>Donnée officielle (Ville de Paris)</span>
           </div>
           <div className="legend-row">
-            <span className="legend-marker pending" aria-hidden="true" />
-            <span>Disponibilité temps réel : non diffusée par la Ville</span>
+            <span className="legend-marker user" aria-hidden="true" />
+            <span>Votre position actuelle</span>
           </div>
         </div>
       </aside>
@@ -230,7 +402,7 @@ export function ParkingMap() {
         <div className="map-overlay">
           <strong>Paris — 125 parcs en ouvrage</strong>
           <span>
-            Cliquez sur un parking pour consulter capacité, tarifs et horaires officiels.
+            Cliquez sur un parking pour consulter capacité, tarifs et lancer l&apos;itinéraire Google Maps.
           </span>
         </div>
 
@@ -245,29 +417,96 @@ export function ParkingMap() {
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
 
-          <MapController target={selectedParking ? selectedParking.location : null} />
+          <MapController target={mapTarget} />
 
-          {filteredParkings.map((p) => {
+          {/* Marqueur de position de l'utilisateur */}
+          {userLocation && (
+            <Marker
+              position={[userLocation.latitude, userLocation.longitude]}
+              icon={createUserIcon()}
+            >
+              <Popup className="user-popup">
+                <div style={{ padding: "8px 10px", fontSize: "13px" }}>
+                  <strong>📍 Votre position</strong>
+                  <p style={{ margin: "4px 0 0", color: "#64748b", fontSize: "11.5px" }}>
+                    Les distances et tris sont calculés à partir d&apos;ici.
+                  </p>
+                </div>
+              </Popup>
+            </Marker>
+          )}
+
+          {/* Marqueurs des parkings */}
+          {processedParkings.map((p) => {
             const isSelected = selectedParking?.id === p.id;
+            const distance = userLocation
+              ? calculateDistanceKm(
+                  userLocation.latitude,
+                  userLocation.longitude,
+                  p.location.latitude,
+                  p.location.longitude
+                )
+              : undefined;
+            const directionsUrl = getGoogleMapsDirectionsUrl(
+              p.location.latitude,
+              p.location.longitude,
+              p.name
+            );
+
             return (
               <Marker
                 key={p.id}
                 position={[p.location.latitude, p.location.longitude]}
                 icon={createParkingIcon(isSelected)}
                 eventHandlers={{
-                  click: () => setSelectedParking(p),
+                  click: () => {
+                    setSelectedParking(p);
+                    setMapTarget({
+                      latitude: p.location.latitude,
+                      longitude: p.location.longitude,
+                      zoom: 15,
+                    });
+                  },
                 }}
               >
                 <Popup className="custom-popup">
                   <div className="popup-body">
                     <div className="popup-header">
                       <span className="popup-operator">{p.operator || "Ville de Paris"}</span>
+                      {distance !== undefined && (
+                        <span className="popup-distance">
+                          📍 à {formatDistance(distance)}
+                        </span>
+                      )}
                       {p.arrondissement && (
                         <span className="popup-arrdt">{p.arrondissement}</span>
                       )}
                     </div>
+
                     <h2 className="popup-title">{p.name}</h2>
                     {p.address && <p className="popup-addr">{p.address}</p>}
+
+                    {/* Bouton Itinéraire Google Maps mis en valeur */}
+                    <a
+                      href={directionsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="popup-itinerary-btn"
+                    >
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <polygon points="3 11 22 2 13 21 11 13 3 11" />
+                      </svg>
+                      <span>Itinéraire Google Maps ↗</span>
+                    </a>
 
                     <div className="popup-stats-grid">
                       <div className="popup-stat">
