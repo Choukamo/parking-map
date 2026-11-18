@@ -17,6 +17,18 @@ export type ParkingWithDistance = ParkingAvailability & {
   distanceKm?: number;
 };
 
+export interface ParkingFilters {
+  search?: string;
+  sortOption: SortOption;
+  maxDistanceKm?: number; // ex: 0.5, 1, 2, 5
+  maxPriceOneHour?: number; // ex: 3.5, 4.5, 5.5
+  operator?: string; // "all", "INDIGO", "SAEMES", etc.
+  onlyOpen24?: boolean;
+  onlyPrm?: boolean;
+  onlyBicycle?: boolean;
+  onlyMotorcycle?: boolean;
+}
+
 /**
  * Calcule la distance orthodromique (en kilomètres) entre deux coordonnées GPS
  * en utilisant la formule de Haversine.
@@ -68,14 +80,15 @@ export function getGoogleMapsDirectionsUrl(
 }
 
 /**
- * Trie une liste de parkings selon l'option choisie et la position utilisateur
+ * Filtre et trie une liste de parkings selon les critères
  */
-export function sortParkings(
+export function filterAndSortParkings(
   parkings: ParkingAvailability[],
-  sortOption: SortOption,
+  filters: ParkingFilters,
   userLocation: Coordinates | null
 ): ParkingWithDistance[] {
-  const listWithDistance: ParkingWithDistance[] = parkings.map((p) => {
+  // 1. Calcul de la distance
+  let list: ParkingWithDistance[] = parkings.map((p) => {
     if (userLocation) {
       const distanceKm = calculateDistanceKm(
         userLocation.latitude,
@@ -88,8 +101,70 @@ export function sortParkings(
     return { ...p, distanceKm: undefined };
   });
 
-  return listWithDistance.sort((a, b) => {
-    switch (sortOption) {
+  // 2. Filtre textuel
+  if (filters.search && filters.search.trim()) {
+    const q = filters.search.trim().toLowerCase();
+    list = list.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        (p.address && p.address.toLowerCase().includes(q)) ||
+        (p.operator && p.operator.toLowerCase().includes(q)) ||
+        (p.arrondissement && p.arrondissement.toLowerCase().includes(q))
+    );
+  }
+
+  // 3. Filtre distance max (si position connue)
+  if (filters.maxDistanceKm !== undefined && filters.maxDistanceKm > 0) {
+    list = list.filter(
+      (p) => p.distanceKm !== undefined && p.distanceKm <= filters.maxDistanceKm!
+    );
+  }
+
+  // 4. Filtre prix max (tarif 1h)
+  if (filters.maxPriceOneHour !== undefined && filters.maxPriceOneHour > 0) {
+    list = list.filter(
+      (p) =>
+        p.pricing?.oneHour !== undefined &&
+        p.pricing.oneHour <= filters.maxPriceOneHour!
+    );
+  }
+
+  // 5. Filtre opérateur
+  if (filters.operator && filters.operator !== "all") {
+    const targetOp = filters.operator.toUpperCase();
+    list = list.filter(
+      (p) => p.operator && p.operator.toUpperCase().includes(targetOp)
+    );
+  }
+
+  // 6. Filtre ouvert 24h
+  if (filters.onlyOpen24) {
+    list = list.filter((p) => {
+      const h = (p.openingHours || "").toLowerCase();
+      return h.includes("24h") || h.includes("24/24") || h.includes("7j");
+    });
+  }
+
+  // 7. Filtre PMR
+  if (filters.onlyPrm) {
+    list = list.filter((p) => p.prmSpaces !== undefined && p.prmSpaces > 0);
+  }
+
+  // 8. Filtre vélos
+  if (filters.onlyBicycle) {
+    list = list.filter((p) => p.bicycleSpaces !== undefined && p.bicycleSpaces > 0);
+  }
+
+  // 9. Filtre 2 roues
+  if (filters.onlyMotorcycle) {
+    list = list.filter(
+      (p) => p.motorcycleSpaces !== undefined && p.motorcycleSpaces > 0
+    );
+  }
+
+  // 10. Tri
+  return list.sort((a, b) => {
+    switch (filters.sortOption) {
       case "distance-asc": {
         if (a.distanceKm === undefined && b.distanceKm === undefined) return 0;
         if (a.distanceKm === undefined) return 1;

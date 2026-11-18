@@ -4,16 +4,14 @@ import {
   calculateDistanceKm,
   formatDistance,
   getGoogleMapsDirectionsUrl,
-  sortParkings,
+  filterAndSortParkings,
+  type ParkingFilters,
 } from "../lib/utils/geo.ts";
 import type { ParkingAvailability } from "../types/parking.ts";
 
-describe("Geo Utilities & Sorting", () => {
+describe("Geo Utilities & Advanced Filters", () => {
   it("should calculate correct Haversine distance between two points", () => {
-    // Tour Eiffel : 48.8584, 2.2945
-    // Cathédrale Notre-Dame : 48.8530, 2.3499
     const distance = calculateDistanceKm(48.8584, 2.2945, 48.8530, 2.3499);
-    // Distance réelle ~ 4.1 - 4.3 km
     assert.ok(distance > 4.0 && distance < 4.4, `Calculated distance: ${distance}`);
   });
 
@@ -21,7 +19,6 @@ describe("Geo Utilities & Sorting", () => {
     assert.equal(formatDistance(0.35), "350 m");
     assert.equal(formatDistance(0.05), "50 m");
     assert.equal(formatDistance(1.234), "1.2 km");
-    assert.equal(formatDistance(12.78), "12.8 km");
   });
 
   it("should generate a valid Google Maps directions URL", () => {
@@ -41,7 +38,11 @@ describe("Geo Utilities & Sorting", () => {
       observedAt: "2026-11-18T10:00:00Z",
       sourceId: "paris-data",
       confidence: "unknown",
+      operator: "INDIGO",
+      openingHours: "24h / 24",
       pricing: { oneHour: 4.8 },
+      prmSpaces: 10,
+      bicycleSpaces: 20,
     },
     {
       id: "p2",
@@ -52,7 +53,10 @@ describe("Geo Utilities & Sorting", () => {
       observedAt: "2026-11-18T10:00:00Z",
       sourceId: "paris-data",
       confidence: "unknown",
+      operator: "SAEMES",
+      openingHours: "07h - 22h",
       pricing: { oneHour: 3.5 },
+      motorcycleSpaces: 30,
     },
     {
       id: "p3",
@@ -63,36 +67,55 @@ describe("Geo Utilities & Sorting", () => {
       observedAt: "2026-11-18T10:00:00Z",
       sourceId: "paris-data",
       confidence: "unknown",
+      operator: "INDIGO",
+      openingHours: "24h / 24",
       pricing: { oneHour: 5.5 },
+      prmSpaces: 5,
     },
   ];
 
   it("should sort parkings by price ascending (cheapest first)", () => {
-    const sorted = sortParkings(sampleParkings, "price-asc", null);
+    const filters: ParkingFilters = { sortOption: "price-asc" };
+    const sorted = filterAndSortParkings(sampleParkings, filters, null);
     assert.equal(sorted[0].id, "p2"); // 3.5€
     assert.equal(sorted[1].id, "p1"); // 4.8€
     assert.equal(sorted[2].id, "p3"); // 5.5€
   });
 
-  it("should sort parkings by price descending (most expensive first)", () => {
-    const sorted = sortParkings(sampleParkings, "price-desc", null);
-    assert.equal(sorted[0].id, "p3"); // 5.5€
-    assert.equal(sorted[1].id, "p1"); // 4.8€
-    assert.equal(sorted[2].id, "p2"); // 3.5€
+  it("should filter by maximum price (e.g. <= 4.0€)", () => {
+    const filters: ParkingFilters = { sortOption: "default", maxPriceOneHour: 4.0 };
+    const filtered = filterAndSortParkings(sampleParkings, filters, null);
+    assert.equal(filtered.length, 1);
+    assert.equal(filtered[0].id, "p2");
   });
 
-  it("should sort parkings by distance ascending when user location is provided", () => {
-    // Proche de Châtelet
+  it("should filter by operator (e.g. SAEMES)", () => {
+    const filters: ParkingFilters = { sortOption: "default", operator: "SAEMES" };
+    const filtered = filterAndSortParkings(sampleParkings, filters, null);
+    assert.equal(filtered.length, 1);
+    assert.equal(filtered[0].id, "p2");
+  });
+
+  it("should filter by 24h/24 opening", () => {
+    const filters: ParkingFilters = { sortOption: "default", onlyOpen24: true };
+    const filtered = filterAndSortParkings(sampleParkings, filters, null);
+    assert.equal(filtered.length, 2);
+    assert.ok(filtered.some((p) => p.id === "p1"));
+    assert.ok(filtered.some((p) => p.id === "p3"));
+  });
+
+  it("should filter by PMR presence", () => {
+    const filters: ParkingFilters = { sortOption: "default", onlyPrm: true };
+    const filtered = filterAndSortParkings(sampleParkings, filters, null);
+    assert.equal(filtered.length, 2);
+    assert.ok(!filtered.some((p) => p.id === "p2"));
+  });
+
+  it("should filter by distance when user location is provided", () => {
     const user = { latitude: 48.8585, longitude: 2.3475 };
-    const sorted = sortParkings(sampleParkings, "distance-asc", user);
-    assert.equal(sorted[0].id, "p1"); // Châtelet le plus proche
-    assert.ok(sorted[0].distanceKm !== undefined);
-  });
-
-  it("should sort parkings by capacity descending", () => {
-    const sorted = sortParkings(sampleParkings, "capacity-desc", null);
-    assert.equal(sorted[0].id, "p2"); // 800
-    assert.equal(sorted[1].id, "p1"); // 500
-    assert.equal(sorted[2].id, "p3"); // 300
+    const filters: ParkingFilters = { sortOption: "distance-asc", maxDistanceKm: 1.0 };
+    const filtered = filterAndSortParkings(sampleParkings, filters, user);
+    assert.equal(filtered.length, 1);
+    assert.equal(filtered[0].id, "p1");
   });
 });

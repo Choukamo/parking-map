@@ -1,18 +1,23 @@
 :root {
-  --ink: #17231f;
-  --muted: #68756f;
+  --ink: #111827;
+  --ink-secondary: #374151;
+  --muted: #6b7280;
   --surface: #ffffff;
-  --surface-soft: #f4f7f5;
-  --line: #dfe7e2;
-  --accent: #13795b;
-  --accent-soft: #e1f3eb;
-  --accent-dark: #0d533e;
+  --surface-soft: #f8fafc;
+  --line: #e2e8f0;
+  --accent: #15803d;
+  --accent-soft: #dcfce7;
+  --accent-dark: #166534;
   --blue: #2563eb;
   --blue-soft: #dbeafe;
+  --blue-dark: #1d4ed8;
   --warning: #d97706;
   --warning-soft: #fef3c7;
   --danger: #dc2626;
   --danger-soft: #fee2e2;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.12);
+  --shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.18);
 }
 
 * {
@@ -23,13 +28,15 @@ html,
 body {
   height: 100%;
   margin: 0;
+  padding: 0;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
   background: var(--surface-soft);
   color: var(--ink);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  overflow: hidden;
 }
 
 button,
@@ -38,32 +45,144 @@ select {
   font: inherit;
 }
 
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border-width: 0;
-}
-
 .app-shell {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(320px, 420px) 1fr;
   height: 100vh;
-  min-height: 600px;
+  width: 100vw;
+  overflow: hidden;
 }
 
-/* Sidebar */
+/* =========================================================
+   BARRE FLOTTANTE MOBILE (Visible uniquement sur mobile)
+========================================================= */
+.mobile-header {
+  display: none;
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.mobile-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  padding: 6px 8px 6px 14px;
+  border-radius: 999px;
+  box-shadow: var(--shadow-md);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  pointer-events: auto;
+}
+
+.mobile-search-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  color: var(--ink);
+  outline: none;
+  padding: 4px 0;
+}
+
+.mobile-search-input::placeholder {
+  color: var(--muted);
+}
+
+.mobile-filter-trigger {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
+  color: var(--ink-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.mobile-filter-trigger.has-active {
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+  border-color: var(--accent);
+}
+
+.filter-badge-pill {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white;
+  font-size: 10px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mobile-geoloc-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--blue-soft);
+  background: var(--blue-soft);
+  color: var(--blue-dark);
+  font-size: 16px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.mobile-geoloc-trigger.active {
+  background: var(--blue);
+  color: white;
+}
+
+.mobile-geo-alert {
+  pointer-events: auto;
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-radius: 12px;
+  font-size: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: var(--shadow-sm);
+}
+
+.mobile-geo-alert button {
+  background: none;
+  border: none;
+  font-size: 16px;
+  color: var(--danger);
+  cursor: pointer;
+}
+
+/* =========================================================
+   SIDEBAR (Desktop par défaut, Liste sur Mobile)
+========================================================= */
 .sidebar {
   z-index: 2;
   display: flex;
   flex-direction: column;
   height: 100vh;
-  padding: 20px 18px 14px 20px;
+  padding: 20px 18px 16px 20px;
   background: var(--surface);
   border-right: 1px solid var(--line);
   overflow: hidden;
@@ -72,7 +191,7 @@ select {
 .sidebar-top {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
   flex-shrink: 0;
 }
 
@@ -92,7 +211,7 @@ select {
   color: white;
   font-size: 19px;
   font-weight: 800;
-  box-shadow: 0 4px 12px rgba(19, 121, 91, 0.25);
+  box-shadow: 0 4px 10px rgba(21, 128, 61, 0.25);
 }
 
 .brand-name {
@@ -107,12 +226,12 @@ select {
   padding: 2px 7px;
   border-radius: 6px;
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-dark);
   font-size: 10.5px;
   font-weight: 600;
 }
 
-.eyebrow {
+.sidebar-intro .eyebrow {
   margin: 0 0 2px;
   color: var(--accent);
   font-size: 10.5px;
@@ -121,7 +240,7 @@ select {
   text-transform: uppercase;
 }
 
-.sidebar h1 {
+.sidebar-intro h1 {
   margin: 0;
   font-size: 20px;
   line-height: 1.2;
@@ -132,16 +251,11 @@ select {
 .status-card {
   display: flex;
   gap: 10px;
-  padding: 10px 12px;
+  padding: 9px 12px;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--surface-soft);
-  font-size: 12.5px;
-}
-
-.status-card.has-error {
-  border-color: #fca5a5;
-  background: var(--danger-soft);
+  font-size: 12px;
 }
 
 .status-dot {
@@ -165,11 +279,6 @@ select {
   animation: pulse 1.5s infinite ease-in-out;
 }
 
-.status-dot.error {
-  background: var(--danger);
-  box-shadow: 0 0 0 3px var(--danger-soft);
-}
-
 @keyframes pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.5; transform: scale(0.9); }
@@ -177,7 +286,7 @@ select {
 
 .status-card strong {
   display: block;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--ink);
 }
@@ -186,10 +295,9 @@ select {
   display: block;
   color: var(--muted);
   font-size: 11px;
-  line-height: 1.35;
 }
 
-/* Section Géolocalisation */
+/* Bouton Géolocalisation desktop */
 .geoloc-section {
   display: flex;
   flex-direction: column;
@@ -202,47 +310,88 @@ select {
   justify-content: center;
   gap: 8px;
   width: 100%;
-  padding: 9px 14px;
+  padding: 8px 14px;
   border: 1px solid #bfdbfe;
   border-radius: 10px;
   background: var(--blue-soft);
-  color: #1d4ed8;
+  color: var(--blue-dark);
   font-size: 12.5px;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.18s ease;
+  transition: all 0.15s ease;
 }
 
 .geoloc-btn:hover:not(:disabled) {
   background: #bfdbfe;
-  border-color: #93c5fd;
-  transform: translateY(-1px);
 }
 
 .geoloc-btn.active {
-  background: #2563eb;
+  background: var(--blue);
   color: #ffffff;
-  border-color: #1d4ed8;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
-}
-
-.geoloc-icon {
-  font-size: 14px;
+  border-color: var(--blue-dark);
 }
 
 .geoloc-error {
   margin: 2px 0 0;
   color: var(--danger);
   font-size: 11px;
-  line-height: 1.3;
 }
 
-/* Search Section & Tris */
+/* Barre d'accès aux filtres */
+.filter-open-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-modal-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface-soft);
+  color: var(--ink-secondary);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.filter-modal-btn:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+}
+
+.filter-count-chip {
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: white;
+  font-size: 10.5px;
+  font-weight: 800;
+}
+
+.filter-reset-quick {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+
+/* Recherche desktop */
 .search-section {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-top: 12px;
+  gap: 6px;
+  margin-top: 10px;
   flex-shrink: 0;
 }
 
@@ -254,20 +403,18 @@ select {
 
 .search-input {
   width: 100%;
-  padding: 9px 32px 9px 12px;
+  padding: 8px 30px 8px 12px;
   border: 1px solid var(--line);
   border-radius: 9px;
   background: var(--surface-soft);
   font-size: 13px;
   color: var(--ink);
   outline: none;
-  transition: all 0.2s ease;
 }
 
 .search-input:focus {
   background: var(--surface);
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .search-clear-btn {
@@ -275,43 +422,9 @@ select {
   right: 8px;
   background: none;
   border: none;
-  font-size: 17px;
+  font-size: 16px;
   color: var(--muted);
   cursor: pointer;
-  padding: 0 4px;
-}
-
-.sort-controls {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.sort-label {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--muted);
-  white-space: nowrap;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.sort-select {
-  flex: 1;
-  padding: 6px 10px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surface-soft);
-  color: var(--ink);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  outline: none;
-  transition: border-color 0.2s;
-}
-
-.sort-select:focus {
-  border-color: var(--accent);
 }
 
 .search-meta {
@@ -324,13 +437,10 @@ select {
 }
 
 .user-located-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
   padding: 1px 6px;
   border-radius: 4px;
   background: var(--blue-soft);
-  color: #1d4ed8;
+  color: var(--blue-dark);
   font-size: 10px;
   font-weight: 700;
 }
@@ -339,19 +449,15 @@ select {
 .parking-list {
   flex: 1 1 auto;
   overflow-y: auto;
-  margin: 8px -8px 8px 0;
-  padding-right: 8px;
+  margin: 8px -6px 8px 0;
+  padding-right: 6px;
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: 8px;
 }
 
 .parking-list::-webkit-scrollbar {
   width: 5px;
-}
-
-.parking-list::-webkit-scrollbar-track {
-  background: transparent;
 }
 
 .parking-list::-webkit-scrollbar-thumb {
@@ -359,20 +465,37 @@ select {
   border-radius: 10px;
 }
 
+.empty-results {
+  padding: 24px 12px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.reset-btn {
+  margin-top: 10px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 .parking-item {
-  padding: 11px 12px;
+  padding: 10px 12px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.15s ease;
-  user-select: none;
 }
 
 .parking-item:hover {
   border-color: var(--accent);
   background: var(--surface-soft);
-  transform: translateY(-1px);
 }
 
 .parking-item.selected {
@@ -386,7 +509,7 @@ select {
   justify-content: space-between;
   align-items: baseline;
   gap: 6px;
-  margin-bottom: 3px;
+  margin-bottom: 2px;
 }
 
 .parking-item-title {
@@ -394,18 +517,16 @@ select {
   font-size: 13.5px;
   font-weight: 700;
   color: var(--ink);
-  line-height: 1.3;
 }
 
 .parking-operator-badge {
-  font-size: 9.5px;
+  font-size: 9px;
   font-weight: 700;
   text-transform: uppercase;
   padding: 2px 5px;
   border-radius: 4px;
   background: #e2e8f0;
   color: #334155;
-  letter-spacing: 0.04em;
   flex-shrink: 0;
 }
 
@@ -413,7 +534,6 @@ select {
   margin: 0 0 6px;
   color: var(--muted);
   font-size: 11.5px;
-  line-height: 1.35;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -445,7 +565,7 @@ select {
 }
 
 .parking-price {
-  font-weight: 600;
+  font-weight: 700;
   color: var(--ink);
   margin-left: auto;
 }
@@ -466,35 +586,24 @@ select {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 4px 10px;
+  padding: 5px 12px;
   border-radius: 6px;
-  background: var(--accent-soft);
-  color: var(--accent-dark);
-  font-size: 11px;
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 11.5px;
   font-weight: 700;
   text-decoration: none;
   transition: all 0.15s ease;
 }
 
 .itinerary-quick-btn:hover {
-  background: var(--accent);
-  color: #ffffff;
+  background: var(--accent-dark);
 }
 
-/* Legend */
 .legend {
   flex-shrink: 0;
-  padding-top: 10px;
+  padding-top: 8px;
   border-top: 1px solid var(--line);
-}
-
-.legend-title {
-  margin: 0 0 6px;
-  color: var(--muted);
-  font-size: 10.5px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
 }
 
 .legend-row {
@@ -505,13 +614,9 @@ select {
   font-size: 11px;
 }
 
-.legend-row + .legend-row {
-  margin-top: 4px;
-}
-
 .legend-marker {
-  width: 9px;
-  height: 9px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
 }
 
@@ -523,11 +628,14 @@ select {
   background: var(--blue);
 }
 
-/* Map area */
+/* =========================================================
+   ZONE CARTE (Map)
+========================================================= */
 .map-wrap {
   position: relative;
   min-width: 0;
   height: 100vh;
+  width: 100%;
 }
 
 .map {
@@ -535,36 +643,7 @@ select {
   height: 100%;
 }
 
-.map-overlay {
-  position: absolute;
-  z-index: 500;
-  top: 16px;
-  right: 16px;
-  max-width: 290px;
-  padding: 12px 16px;
-  border: 1px solid rgba(255, 255, 255, 0.85);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 8px 24px rgba(20, 45, 35, 0.12);
-  backdrop-filter: blur(10px);
-}
-
-.map-overlay strong {
-  display: block;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--ink);
-  margin-bottom: 3px;
-}
-
-.map-overlay span {
-  display: block;
-  color: var(--muted);
-  font-size: 11.5px;
-  line-height: 1.4;
-}
-
-/* Custom Marker Parking */
+/* Marqueur Parking */
 .custom-map-pin-container {
   background: none;
   border: none;
@@ -580,15 +659,14 @@ select {
   background: var(--accent);
   color: white;
   border: 2px solid white;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.28);
   cursor: pointer;
-  transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.2s ease, background 0.2s ease;
 }
 
 .custom-marker .marker-letter {
   font-size: 13px;
   font-weight: 800;
-  line-height: 1;
 }
 
 .custom-marker:hover {
@@ -599,10 +677,10 @@ select {
 .custom-marker.selected {
   background: #0f172a;
   transform: scale(1.25);
-  box-shadow: 0 0 0 4px var(--accent-soft), 0 4px 12px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 0 0 4px var(--accent-soft), 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
-/* User Location Marker */
+/* Marqueur Utilisateur */
 .custom-user-pin-container {
   background: none;
   border: none;
@@ -637,32 +715,26 @@ select {
 }
 
 @keyframes user-radar {
-  0% {
-    transform: scale(0.5);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(2.4);
-    opacity: 0;
-  }
+  0% { transform: scale(0.5); opacity: 1; }
+  100% { transform: scale(2.4); opacity: 0; }
 }
 
-/* Popup styling */
+/* Popup Leaflet (Desktop) */
 .custom-popup .leaflet-popup-content-wrapper {
   padding: 0;
   border-radius: 16px;
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18);
+  box-shadow: var(--shadow-lg);
   overflow: hidden;
   border: 1px solid var(--line);
 }
 
 .custom-popup .leaflet-popup-content {
   margin: 0;
-  width: 300px !important;
+  width: 290px !important;
 }
 
 .popup-body {
-  padding: 16px 18px;
+  padding: 16px 16px 14px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -679,11 +751,10 @@ select {
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
-  color: var(--accent);
+  color: var(--accent-dark);
   background: var(--accent-soft);
   padding: 2px 7px;
   border-radius: 4px;
-  letter-spacing: 0.03em;
 }
 
 .popup-distance {
@@ -704,7 +775,7 @@ select {
 
 .popup-title {
   margin: 0;
-  font-size: 16.5px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--ink);
   line-height: 1.25;
@@ -714,10 +785,9 @@ select {
   margin: 0;
   color: var(--muted);
   font-size: 12px;
-  line-height: 1.4;
+  line-height: 1.35;
 }
 
-/* Bouton Itinéraire dans Popup */
 .popup-itinerary-btn {
   display: flex;
   align-items: center;
@@ -726,28 +796,27 @@ select {
   width: 100%;
   padding: 10px 14px;
   border-radius: 10px;
-  background: #15803d;
+  background: var(--accent);
   color: #ffffff;
   font-size: 13px;
   font-weight: 700;
   text-decoration: none;
   box-shadow: 0 3px 10px rgba(21, 128, 61, 0.28);
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
 }
 
 .popup-itinerary-btn:hover {
-  background: #166534;
+  background: var(--accent-dark);
   transform: translateY(-1px);
-  box-shadow: 0 5px 14px rgba(21, 128, 61, 0.35);
 }
 
 .popup-stats-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
-  padding: 9px 10px;
+  padding: 8px 10px;
   background: var(--surface-soft);
-  border-radius: 9px;
+  border-radius: 8px;
 }
 
 .popup-stat {
@@ -759,86 +828,30 @@ select {
   font-size: 10px;
   color: var(--muted);
   text-transform: uppercase;
-  letter-spacing: 0.03em;
 }
 
 .stat-val {
   font-size: 12.5px;
   font-weight: 700;
   color: var(--ink);
-  margin-top: 2px;
 }
 
-.popup-dispo-card {
-  display: flex;
-  gap: 8px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  background: var(--warning-soft);
-  border: 1px solid #fde68a;
-  font-size: 11px;
-}
-
-.dispo-indicator {
-  width: 7px;
-  height: 7px;
-  margin-top: 4px;
-  border-radius: 50%;
-  background: var(--warning);
-  flex-shrink: 0;
-}
-
-.popup-dispo-card strong {
-  display: block;
-  color: #92400e;
-  font-size: 11px;
-}
-
-.popup-dispo-card p {
-  margin: 2px 0 0;
-  color: #78350f;
-  line-height: 1.35;
-}
-
-.popup-pricing-table {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.pricing-title {
-  font-size: 11px;
-  color: var(--muted);
-  font-weight: 600;
-}
-
-.pricing-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-}
-
-.pricing-chips .chip {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 6px;
-  background: #f1f5f9;
-  color: #334155;
+.popup-hours-badge {
+  font-size: 11.5px;
+  color: var(--ink-secondary);
 }
 
 .popup-amenities {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 5px;
 }
 
 .amenity {
-  font-size: 11px;
-  padding: 2px 7px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
+  font-size: 10.5px;
+  padding: 2px 6px;
+  background: #f1f5f9;
+  border-radius: 4px;
   color: #475569;
 }
 
@@ -852,39 +865,364 @@ select {
 
 .popup-link:hover {
   text-decoration: underline;
-  color: var(--accent-dark);
 }
 
-/* Responsive */
-@media (max-width: 820px) {
+/* =========================================================
+   BOTTOM CARD MOBILE (Au clic sur un parking)
+========================================================= */
+.mobile-bottom-card {
+  display: none;
+  position: absolute;
+  bottom: 68px;
+  left: 12px;
+  right: 12px;
+  z-index: 1000;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--line);
+  animation: slide-up 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slide-up {
+  from { transform: translateY(30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.bottom-card-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px;
+}
+
+.bottom-card-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  padding-right: 28px;
+}
+
+.bottom-card-title {
+  margin: 0 0 4px;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.bottom-card-addr {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.bottom-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.chip-meta {
+  font-size: 11.5px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--surface-soft);
+  color: var(--ink-secondary);
+  font-weight: 600;
+  border: 1px solid var(--line);
+}
+
+.chip-meta.price {
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+  border-color: #86efac;
+}
+
+.mobile-itinerary-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 4px 12px rgba(21, 128, 61, 0.3);
+}
+
+/* Bouton Flottant Mobile Bascule Carte/Liste */
+.mobile-view-toggle-bar {
+  display: none;
+  position: absolute;
+  bottom: 16px;
+  left: 0;
+  right: 0;
+  z-index: 999;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.mobile-view-pill {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: #111827;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  border: none;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+}
+
+/* =========================================================
+   MODAL / BOTTOM SHEET FILTRES
+========================================================= */
+.filter-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.filter-modal-sheet {
+  background: #ffffff;
+  width: 100%;
+  max-width: 520px;
+  max-height: 85vh;
+  border-radius: 20px 20px 0 0;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: sheet-slide-up 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes sheet-slide-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.filter-sheet-header {
+  padding: 12px 18px 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.sheet-handle {
+  width: 36px;
+  height: 4px;
+  background: #cbd5e1;
+  border-radius: 2px;
+  margin: 0 auto 8px;
+}
+
+.sheet-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sheet-title-row h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.sheet-close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: var(--muted);
+  cursor: pointer;
+  line-height: 1;
+}
+
+.filter-sheet-body {
+  padding: 16px 18px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.filter-group-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.filter-chips-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.filter-chip {
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
+  color: var(--ink-secondary);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.filter-chip.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent-dark);
+}
+
+.filter-toggles-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.filter-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--surface-soft);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.filter-checkbox-row input[type="checkbox"] {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.filter-sheet-footer {
+  padding: 12px 18px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.filter-sheet-clear-btn {
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  background: white;
+  color: var(--muted);
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.filter-sheet-apply-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border: none;
+  background: var(--accent);
+  color: white;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(21, 128, 61, 0.3);
+}
+
+/* =========================================================
+   ADAPTATION MOBILE (< 768px)
+========================================================= */
+@media (max-width: 768px) {
   .app-shell {
+    display: block;
+    height: 100svh;
+    width: 100vw;
+  }
+
+  .mobile-header {
+    display: block;
+  }
+
+  .mobile-view-toggle-bar {
     display: flex;
-    flex-direction: column;
-    min-height: 100svh;
-    overflow-y: auto;
   }
 
-  body {
-    overflow: auto;
+  .mobile-bottom-card {
+    display: block;
   }
 
+  /* Desktop sidebar masquée par défaut sur mobile, devient plein écran en vue "liste" */
   .sidebar {
-    height: auto;
-    max-height: 52vh;
-    padding: 14px;
-    gap: 10px;
+    display: none;
+    position: absolute;
+    inset: 0;
+    z-index: 500;
+    padding: 72px 14px 68px 14px;
+    height: 100svh;
   }
 
-  .parking-list {
-    max-height: 200px;
+  .sidebar.mobile-visible {
+    display: flex;
   }
 
-  .legend {
+  .desktop-search {
+    display: none;
+  }
+
+  .sidebar-intro {
     display: none;
   }
 
   .map-wrap {
-    height: 48vh;
-    min-height: 350px;
+    height: 100svh;
+  }
+
+  /* Sur desktop les popups Leaflet sont bien, sur mobile le bottom sheet prend le relais */
+  .custom-popup {
+    display: none !important;
+  }
+}
+
+/* Sur grand écran, modal centrée pour le filtre */
+@media (min-width: 769px) {
+  .filter-modal-backdrop {
+    align-items: center;
+  }
+
+  .filter-modal-sheet {
+    border-radius: 18px;
+    max-height: 80vh;
   }
 }
