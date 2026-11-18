@@ -12,22 +12,22 @@ Le projet commence par une ville et ne promet pas de détecter toutes les places
 - [x] Carte interactive centrée sur Paris.
 - [x] Aucun faux parking ni faux taux de disponibilité.
 - [x] Documentation des décisions et limites.
-- [ ] Choix définitif de la première ville et de ses sources.
+- [x] Choix définitif de la première ville et de ses sources (Paris — Paris Data).
 
 ## Étape 1 — Cartographier les parkings officiels
 
-- Choisir une ville dont les données sont accessibles par API ou open data.
-- Décrire chaque source : propriétaire, licence, fréquence et fiabilité.
-- Créer un adaptateur par source, sans mélanger les formats directement dans l'interface.
-- Afficher capacité, places disponibles, adresse, horaires et heure de mise à jour.
-- Gérer les erreurs et les données anciennes sans afficher de valeur trompeuse.
+- [x] Choisir une ville dont les données sont accessibles par API ou open data (Paris Data).
+- [x] Décrire chaque source : propriétaire, licence, fréquence et fiabilité (cf. DATA-SOURCES.md).
+- [x] Créer un adaptateur par source, sans mélanger les formats directement dans l'interface (`lib/adapters/paris.ts`).
+- [x] Afficher capacité, places disponibles, adresse, horaires et heure de mise à jour.
+- [x] Gérer les erreurs et les données anciennes sans afficher de valeur trompeuse.
 
 ## Étape 2 — Modèle de données commun
 
-L'interface devra consommer un format interne stable :
+- [x] Implémenté dans `types/parking.ts` :
 
 ```ts
-type ParkingAvailability = {
+export type ParkingAvailability = {
   id: string;
   name: string;
   location: { latitude: number; longitude: number };
@@ -42,11 +42,11 @@ type ParkingAvailability = {
 
 ## Étape 3 — Qualité des données
 
-- Afficher l'âge exact de la donnée.
-- Ne jamais transformer une donnée manquante en zéro.
-- Détecter les valeurs impossibles : disponibilité négative ou supérieure à la capacité.
-- Conserver les erreurs de synchronisation dans des logs non sensibles.
-- Ajouter des tests sur chaque adaptateur.
+- [x] Afficher l'âge exact de la donnée.
+- [x] Ne jamais transformer une donnée manquante en zéro (disponibilité temps réel reste `undefined` tant qu'aucun capteur officiel n'est publié).
+- [x] Détecter les valeurs impossibles : coordonnées hors Paris, capacité négative, etc.
+- [x] Conserver les erreurs de synchronisation dans des logs non sensibles.
+- [x] Ajouter des tests unitaires sur l'adaptateur (`tests/paris-adapter.test.ts`).
 
 ## Étape 4 — Estimations de rue, uniquement si une source sérieuse existe
 

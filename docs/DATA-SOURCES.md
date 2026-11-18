@@ -32,6 +32,18 @@ Pages récupérées sans licence claire, flux cachés, sources anonymes ou infor
 
 Ces sources ne doivent pas alimenter l'application.
 
+## Sources intégrées
+
+### Paris — Stationnement en ouvrage concédé
+- **Fournisseur :** Ville de Paris (Direction de la Voirie et des Déplacements)
+- **Portail :** Paris Data (Opendatasoft v2.1 API)
+- **Dataset :** `stationnement-en-ouvrage`
+- **Licence :** Licence Ouverte (Etalab 2.0)
+- **Fréquence :** Périodique (mise à jour officielle par la Ville)
+- **Périmètre :** 125 parkings en ouvrage concédés (Indigo, Saemes, etc.)
+- **Données fournies :** Coordonnées géographiques précises, capacité totale, horaires, tarifs (1h, 2h, 24h), places PMR, vélos, 2-roues motorisés, URL officielle.
+- **Disponibilité temps réel :** Non fournie actuellement par la Ville de Paris sur ce jeu de données (le champ `availableSpaces` reste délibérément `undefined` et l'interface indique la transparence sur l'absence de capteurs temps réel).
+
 ## Sources envisagées
 
 - APIs et open data des villes ;
