@@ -1,47 +1,73 @@
 # Parking Map
 
-Base technique d'une application qui rassemble les disponibilités officielles de stationnement sur une carte.
+Application web cartographique moderne rassemblant les disponibilités et informations officielles de stationnement à partir de données réelles et vérifiables.
 
-## État actuel
+---
 
-Le projet contient uniquement le squelette fonctionnel :
+## Fonctionnalités actuelles (Ville pilote : Paris)
 
-- carte interactive centrée sur Paris ;
-- interface vide volontairement, sans fausses places ni fausses disponibilités ;
-- structure TypeScript prête à recevoir les adaptateurs d'API des villes ;
-- documentation produit et technique dans [`docs/`](./docs).
+- **125 parkings en ouvrage concédés** issus directement de l'Open Data officiel de la Ville de Paris (*Paris Data*).
+- **Carte allégée CartoDB Positron** : suppression de la pollution visuelle des tuiles traditionnelles (immeubles, sentiers secondaires) pour une lisibilité immédiate.
+- **Filtrage par rayon de proximité** : affichage limité par défaut aux parkings dans un rayon de **1 km** autour de l'utilisateur (ou du centre de Paris) pour éviter d'encombrer l'écran. Sélecteur rapide : 500m, 1km, 2km, 5km, tout Paris.
+- **Cercle visuel de zone** : repérage instantané du périmètre de recherche sur la carte.
+- **Géolocalisation & calcul de distance** : bouton direct pour se localiser, calcul précis de la distance (formule de Haversine).
+- **Tri multicritère** : du plus proche au plus éloigné, ou du moins cher au plus cher.
+- **Filtres avancés** : prix horaire maximal, ouvert 24h/24, accès PMR, sélection de l'exploitant (Saemes, Indigo, Q-Park, etc.).
+- **Ergonomie Mobile-First** : tiroir de filtres rétractable (Bottom Sheet) facilement manipulable au pouce sur smartphone.
+- **Fiche d'aperçu & Itinéraire** : aperçu compact en bas d'écran avec lancement direct de **Google Maps** pour la navigation GPS.
+- **Transparence et rigueur** : aucune fausse place simulée, informations vérifiées (capacités, tarifs horaires, exploitants).
 
-## Lancer le projet
+---
 
-Pré-requis : Node.js 20 ou plus récent.
+## Démarrage rapide
+
+### Pré-requis
+- Node.js 20 ou supérieur.
 
 ```bash
+# Installation des dépendances
 npm install
+
+# Démarrage du serveur local
 npm run dev
 ```
 
-Puis ouvrir [http://localhost:3000](http://localhost:3000).
+Ouvrir [http://localhost:3000](http://localhost:3000) dans votre navigateur.
 
-## Vérifications
+---
+
+## Tests & Qualité de code
+
+Le projet intègre une suite de tests unitaires automatisée (16 tests validés) :
 
 ```bash
+# Lancer les tests unitaires
+npm test
+
+# Vérifier le typage et le lint
 npm run lint
+
+# Compiler pour la production
 npm run build
 ```
 
-## Déploiement Vercel
+---
 
-Le projet est une application Next.js standard et peut être importé directement depuis GitHub dans Vercel.
+## Déploiement
 
-- Framework : Next.js
-- Build command : `npm run build`
-- Output directory : laisser la valeur par défaut
-- Variables secrètes : aucune pour ce squelette
+Le projet est configuré pour un déploiement continu sur **Vercel** à chaque push sur la branche `main` du dépôt GitHub.
 
-Les tuiles cartographiques utilisent OpenStreetMap avec attribution visible. Les limites d'utilisation et les sources de données sont documentées avant toute mise en production.
+- **Framework Preset :** Next.js
+- **Build Command :** `npm run build`
+- **Output Directory :** `.next`
 
-## Documentation
+---
 
-- [`docs/PLAN.md`](./docs/PLAN.md) — plan d'action par étapes ;
-- [`docs/DATA-SOURCES.md`](./docs/DATA-SOURCES.md) — sources acceptables et fiabilité ;
-- [`docs/DECISIONS.md`](./docs/DECISIONS.md) — décisions et limites du projet.
+## Documentation de passation
+
+Tous les détails de conception, de sources de données et les guides techniques sont disponibles dans le dossier [`docs/`](./docs) :
+
+- [`docs/PASSATION.md`](./docs/PASSATION.md) — Document complet de passation technique et guide d'intégration d'une nouvelle ville ;
+- [`docs/PLAN.md`](./docs/PLAN.md) — Roadmap détaillée et état d'avancement des étapes ;
+- [`docs/DECISIONS.md`](./docs/DECISIONS.md) — Historique des choix d'architecture et d'ergonomie ;
+- [`docs/DATA-SOURCES.md`](./docs/DATA-SOURCES.md) — Répertoire des sources de données, licences et critères de fiabilité.

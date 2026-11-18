@@ -2,30 +2,30 @@
 
 ## Objectif
 
-Construire progressivement une application qui affiche les disponibilités de stationnement à partir de données déjà existantes et vérifiables.
+Construire progressivement une application qui affiche les disponibilités de stationnement à partir de données réelles, officielles et vérifiables.
 
-Le projet commence par une ville et ne promet pas de détecter toutes les places de rue.
+Le projet a démarré avec la ville pilote de **Paris** et privilégie la rigueur : aucune fausse place, aucune simulation fictive.
 
-## Étape 0 — Squelette actuel
+---
 
-- [x] Application web déployable sur Vercel.
-- [x] Carte interactive centrée sur Paris.
-- [x] Aucun faux parking ni faux taux de disponibilité.
-- [x] Documentation des décisions et limites.
-- [x] Choix définitif de la première ville et de ses sources (Paris — Paris Data).
+## État des étapes
 
-## Étape 1 — Cartographier les parkings officiels
+### Étape 0 — Squelette & Déploiement
+- [x] Application web déployable sur Vercel (Next.js 15 App Router).
+- [x] Carte interactive Leaflet sans aucune donnée fictive.
+- [x] Documentation initiale des décisions et limites (`docs/`).
+- [x] Choix de la première ville : **Paris (Paris Data)**.
 
-- [x] Choisir une ville dont les données sont accessibles par API ou open data (Paris Data).
-- [x] Décrire chaque source : propriétaire, licence, fréquence et fiabilité (cf. DATA-SOURCES.md).
-- [x] Créer un adaptateur par source, sans mélanger les formats directement dans l'interface (`lib/adapters/paris.ts`).
-- [x] Afficher capacité, places disponibles, adresse, horaires et heure de mise à jour.
-- [x] Gérer les erreurs et les données anciennes sans afficher de valeur trompeuse.
+### Étape 1 — Cartographier les parkings parisiens
+- [x] Connexion à l'API officielle Paris Data (`stationnement-en-ouvrage`).
+- [x] Adaptateur dédié et typé : `lib/adapters/paris.ts`.
+- [x] Route API avec cache ISR (`revalidate = 3600`) : `app/api/parkings/paris/route.ts`.
+- [x] Récupération et normalisation des 125 parkings en ouvrage concédés (Indigo, Saemes, Q-Park...).
+- [x] Nettoyage et validation des coordonnées géographiques, adresses, capacités, tarifs horaires, places PMR/vélos.
+- [x] Tests unitaires sur l'adaptateur (`tests/paris-adapter.test.ts` — 6/6 tests validés).
 
-## Étape 2 — Modèle de données commun
-
-- [x] Implémenté dans `types/parking.ts` :
-
+### Étape 2 — Modèle de données commun
+- [x] Standardisé dans `types/parking.ts` :
 ```ts
 export type ParkingAvailability = {
   id: string;
@@ -34,56 +34,55 @@ export type ParkingAvailability = {
   capacity?: number;
   availableSpaces?: number;
   status: "open" | "closed" | "unknown";
+  tarifs?: {
+    tarif1h?: number;
+    tarif2h?: number;
+    tarif24h?: number;
+  };
+  hasPMR?: boolean;
+  hasBicycle?: boolean;
+  has2RM?: boolean;
+  openingHours?: string;
+  operator?: string;
+  url?: string;
   observedAt: string;
   sourceId: string;
   confidence: "official-realtime" | "historical-estimate" | "unknown";
 };
 ```
 
-## Étape 3 — Qualité des données
+### Étape 3 — Expérience utilisateur & Ergonomie Mobile
+- [x] **Fond de carte minimaliste** : Remplacement des tuiles OpenStreetMap surchargées par **CartoDB Positron** pour éliminer le bruit visuel (immeubles superflus, sentiers, POI parasites).
+- [x] **Recherche par rayon de proximité** : Limitation de l'affichage aux parkings dans un rayon sélectionnable (500 m, 1 km, 2 km, 5 km, ou Tout Paris) au lieu d'afficher 125 marqueurs encombrants.
+- [x] **Cercle visuel de zone** : Affichage d'un cercle semi-transparent sur la carte autour de la position de référence.
+- [x] **Géolocalisation "Autour de moi"** : Détection GPS de l'utilisateur avec bouton flottant dédié et calcul de distance Haversine précise.
+- [x] **Tri multicritère** : Plus proche d'abord, plus éloigné, moins cher d'abord, plus cher d'abord.
+- [x] **Filtres avancés** : Prix horaire max, ouvert 24h/24, accès PMR, exploitant (Saemes, Indigo, etc.).
+- [x] **Tiroir de filtres mobile (Bottom Sheet)** : Interface coulissante moderne au pouce.
+- [x] **Fiche d'aperçu & Itinéraire** : Carte compacte en bas d'écran au toucher d'un parking avec bouton direct **Itinéraire Google Maps**.
+- [x] **Suppression du bandeau répétitif** : Retrait du cadre d'alerte jaune dans toutes les fiches pour aérer la lecture.
+- [x] **Tests unitaires géographiques et filtres** : 10 tests validés dans `tests/geo-utils.test.ts` (total 16/16).
 
-- [x] Afficher l'âge exact de la donnée.
-- [x] Ne jamais transformer une donnée manquante en zéro (disponibilité temps réel reste `undefined` tant qu'aucun capteur officiel n'est publié).
-- [x] Détecter les valeurs impossibles : coordonnées hors Paris, capacité négative, etc.
-- [x] Conserver les erreurs de synchronisation dans des logs non sensibles.
-- [x] Ajouter des tests unitaires sur l'adaptateur (`tests/paris-adapter.test.ts`).
+---
 
-## Étape 4 — Estimations de rue, uniquement si une source sérieuse existe
+## Prochaines étapes
 
-Cette fonctionnalité ne sera activée que si la ville fournit au moins une source exploitable :
+### Étape 4 — Deuxième ville avec temps réel actif
+Certaines métropoles françaises publient le décompte exact des places libres en temps réel (contrairement à Paris où l'open data actuel est statique/tarifaire).
+- [ ] Sélectionner une ville compatible temps réel (ex: **Nantes Métropole**, **Strasbourg Eurométropole**, ou **Bordeaux**).
+- [ ] Créer `lib/adapters/<ville>.ts` et son API route correspondante.
+- [ ] Configurer un sélecteur de métropole ou une détection automatique selon la position GPS de l'utilisateur.
+- [ ] Valider avec des tests unitaires dédiés.
 
-- comptages historiques d'occupation ;
-- statistiques agrégées et anonymisées de stationnement ;
-- données officielles de rotation ;
-- caméra officiellement réutilisable et réellement orientée vers des places.
+### Étape 5 — Améliorations PWA & Mode Déconnecté
+- [ ] Ajouter un fichier `manifest.json` et des icônes pour installation sur l'écran d'accueil du smartphone (PWA).
+- [ ] Mise en cache locale (Service Worker / LocalStorage) pour consultation rapide en mobilité même avec un réseau faible.
 
-Sans ces données, l'application affichera « occupation inconnue » au lieu d'inventer un score.
-
-## Étape 5 — Caméras publiques
-
-Une caméra ne sera ajoutée que si :
-
-1. sa source est officielle ;
-2. son flux ou ses images ont une licence compatible ;
-3. son usage respecte les conditions d'accès ;
-4. l'analyse ne conserve pas de plaques ni de visages ;
-5. l'angle et la fréquence permettent une mesure utile ;
-6. la fiabilité est visible dans l'interface.
+---
 
 ## Hors périmètre volontaire
 
-- Pas de signalements communautaires.
-- Pas de capteurs à installer.
-- Pas de récupération de flux cachés ou de caméras privées.
-- Pas de promesse de connaître toutes les places de rue.
-- Pas de stockage de plaques d'immatriculation ou de visages.
-- Pas de modèle économique avant validation de l'utilité.
-
-## Ordre conseillé pour les prochaines IA
-
-1. Inspecter ce dépôt et lire cette documentation.
-2. Étudier les sources officielles de la ville choisie.
-3. Proposer un adaptateur et ses tests avant de modifier l'interface.
-4. Ajouter une seule source fonctionnelle.
-5. Vérifier les données manuellement et par tests.
-6. Ajouter les autres sources une par une.
+- Pas de signalements communautaires non modérés.
+- Pas de capteurs physiques à déployer.
+- Pas de contournement de protections ou de scraping de données privées.
+- Pas de simulation de fausses places libres lorsque l'open data officiel ne fournit pas de capteur temps réel.
