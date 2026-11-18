@@ -20,7 +20,7 @@ export type ParkingWithDistance = ParkingAvailability & {
 export interface ParkingFilters {
   search?: string;
   sortOption: SortOption;
-  maxDistanceKm?: number; // ex: 0.5, 1, 2, 5
+  radiusKm?: number | "all"; // ex: 0.5, 1, 2, 5 ou "all"
   maxPriceOneHour?: number; // ex: 3.5, 4.5, 5.5
   operator?: string; // "all", "INDIGO", "SAEMES", etc.
   onlyOpen24?: boolean;
@@ -28,6 +28,14 @@ export interface ParkingFilters {
   onlyBicycle?: boolean;
   onlyMotorcycle?: boolean;
 }
+
+/**
+ * Coordonnées par défaut du centre de Paris (Hôtel de Ville)
+ */
+export const PARIS_DEFAULT_COORDS: Coordinates = {
+  latitude: 48.8566,
+  longitude: 2.3522,
+};
 
 /**
  * Calcule la distance orthodromique (en kilomètres) entre deux coordonnées GPS
@@ -80,19 +88,19 @@ export function getGoogleMapsDirectionsUrl(
 }
 
 /**
- * Filtre et trie une liste de parkings selon les critères
+ * Filtre et trie une liste de parkings selon les critères et le point de référence (utilisateur ou centre)
  */
 export function filterAndSortParkings(
   parkings: ParkingAvailability[],
   filters: ParkingFilters,
-  userLocation: Coordinates | null
+  referenceCoords: Coordinates | null
 ): ParkingWithDistance[] {
-  // 1. Calcul de la distance
+  // 1. Calcul de la distance par rapport au point de référence
   let list: ParkingWithDistance[] = parkings.map((p) => {
-    if (userLocation) {
+    if (referenceCoords) {
       const distanceKm = calculateDistanceKm(
-        userLocation.latitude,
-        userLocation.longitude,
+        referenceCoords.latitude,
+        referenceCoords.longitude,
         p.location.latitude,
         p.location.longitude
       );
@@ -101,7 +109,18 @@ export function filterAndSortParkings(
     return { ...p, distanceKm: undefined };
   });
 
-  // 2. Filtre textuel
+  // 2. Filtre par rayon (ex: 0.5km, 1km, 2km, 5km)
+  if (
+    filters.radiusKm !== undefined &&
+    filters.radiusKm !== "all" &&
+    filters.radiusKm > 0
+  ) {
+    list = list.filter(
+      (p) => p.distanceKm !== undefined && p.distanceKm <= (filters.radiusKm as number)
+    );
+  }
+
+  // 3. Filtre textuel
   if (filters.search && filters.search.trim()) {
     const q = filters.search.trim().toLowerCase();
     list = list.filter(
@@ -110,13 +129,6 @@ export function filterAndSortParkings(
         (p.address && p.address.toLowerCase().includes(q)) ||
         (p.operator && p.operator.toLowerCase().includes(q)) ||
         (p.arrondissement && p.arrondissement.toLowerCase().includes(q))
-    );
-  }
-
-  // 3. Filtre distance max (si position connue)
-  if (filters.maxDistanceKm !== undefined && filters.maxDistanceKm > 0) {
-    list = list.filter(
-      (p) => p.distanceKm !== undefined && p.distanceKm <= filters.maxDistanceKm!
     );
   }
 
@@ -200,6 +212,10 @@ export function filterAndSortParkings(
       }
       case "default":
       default:
+        // Par défaut, si une position est connue, trier naturellement par distance pour la pertinence
+        if (a.distanceKm !== undefined && b.distanceKm !== undefined) {
+          return a.distanceKm - b.distanceKm;
+        }
         return 0;
     }
   });

@@ -111,11 +111,19 @@ describe("Geo Utilities & Advanced Filters", () => {
     assert.ok(!filtered.some((p) => p.id === "p2"));
   });
 
-  it("should filter by distance when user location is provided", () => {
+  it("should filter by radius when reference coordinates are provided", () => {
     const user = { latitude: 48.8585, longitude: 2.3475 };
-    const filters: ParkingFilters = { sortOption: "distance-asc", maxDistanceKm: 1.0 };
+    // p1 est à ~0.1 km, p2 et p3 sont à > 1.5 km
+    const filters: ParkingFilters = { sortOption: "default", radiusKm: 1.0 };
     const filtered = filterAndSortParkings(sampleParkings, filters, user);
     assert.equal(filtered.length, 1);
     assert.equal(filtered[0].id, "p1");
+  });
+
+  it("should return all parkings when radiusKm is 'all'", () => {
+    const user = { latitude: 48.8585, longitude: 2.3475 };
+    const filters: ParkingFilters = { sortOption: "default", radiusKm: "all" };
+    const filtered = filterAndSortParkings(sampleParkings, filters, user);
+    assert.equal(filtered.length, 3);
   });
 });

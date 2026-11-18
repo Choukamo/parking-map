@@ -34,7 +34,7 @@ body {
 }
 
 body {
-  background: var(--surface-soft);
+  background: #f1f5f9;
   color: var(--ink);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
@@ -55,28 +55,30 @@ select {
 }
 
 /* =========================================================
-   BARRE FLOTTANTE MOBILE (Visible uniquement sur mobile)
+   BARRE FLOTTANTE MOBILE
 ========================================================= */
 .mobile-header {
   display: none;
   position: absolute;
-  top: 12px;
-  left: 12px;
-  right: 12px;
+  top: 10px;
+  left: 10px;
+  right: 10px;
   z-index: 1000;
   pointer-events: none;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .mobile-search-bar {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.96);
   backdrop-filter: blur(12px);
   padding: 6px 8px 6px 14px;
   border-radius: 999px;
   box-shadow: var(--shadow-md);
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  border: 1px solid rgba(226, 232, 240, 0.9);
   pointer-events: auto;
 }
 
@@ -106,7 +108,6 @@ select {
   background: var(--surface-soft);
   color: var(--ink-secondary);
   cursor: pointer;
-  transition: all 0.15s ease;
   flex-shrink: 0;
 }
 
@@ -152,9 +153,55 @@ select {
   color: white;
 }
 
+/* Barre de sélection de rayon sous la recherche mobile */
+.mobile-radius-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 2px 4px;
+  pointer-events: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mobile-radius-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.radius-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #334155;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 4px 8px;
+  border-radius: 20px;
+  box-shadow: var(--shadow-sm);
+  white-space: nowrap;
+}
+
+.radius-pill {
+  padding: 5px 11px;
+  border-radius: 20px;
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  background: rgba(255, 255, 255, 0.95);
+  color: #334155;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(8px);
+  transition: all 0.15s ease;
+}
+
+.radius-pill.active {
+  background: #111827;
+  color: #ffffff;
+  border-color: #111827;
+}
+
 .mobile-geo-alert {
   pointer-events: auto;
-  margin-top: 8px;
   padding: 8px 12px;
   background: var(--danger-soft);
   color: var(--danger);
@@ -175,14 +222,14 @@ select {
 }
 
 /* =========================================================
-   SIDEBAR (Desktop par défaut, Liste sur Mobile)
+   SIDEBAR (Desktop)
 ========================================================= */
 .sidebar {
   z-index: 2;
   display: flex;
   flex-direction: column;
   height: 100vh;
-  padding: 20px 18px 16px 20px;
+  padding: 18px 18px 14px 20px;
   background: var(--surface);
   border-right: 1px solid var(--line);
   overflow: hidden;
@@ -191,7 +238,7 @@ select {
 .sidebar-top {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   flex-shrink: 0;
 }
 
@@ -242,7 +289,7 @@ select {
 
 .sidebar-intro h1 {
   margin: 0;
-  font-size: 20px;
+  font-size: 19px;
   line-height: 1.2;
   letter-spacing: -0.03em;
 }
@@ -251,7 +298,7 @@ select {
 .status-card {
   display: flex;
   gap: 10px;
-  padding: 9px 12px;
+  padding: 8px 12px;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--surface-soft);
@@ -310,12 +357,12 @@ select {
   justify-content: center;
   gap: 8px;
   width: 100%;
-  padding: 8px 14px;
+  padding: 8px 12px;
   border: 1px solid #bfdbfe;
-  border-radius: 10px;
+  border-radius: 9px;
   background: var(--blue-soft);
   color: var(--blue-dark);
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -337,6 +384,30 @@ select {
   font-size: 11px;
 }
 
+/* Sélecteur de rayon desktop */
+.desktop-radius-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+}
+
+.radius-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.radius-pills-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
 /* Barre d'accès aux filtres */
 .filter-open-bar {
   display: flex;
@@ -355,7 +426,7 @@ select {
   border-radius: 9px;
   background: var(--surface-soft);
   color: var(--ink-secondary);
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -380,10 +451,9 @@ select {
   background: none;
   border: none;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11.5px;
   text-decoration: underline;
   cursor: pointer;
-  padding: 4px 6px;
 }
 
 /* Recherche desktop */
@@ -391,7 +461,7 @@ select {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin-top: 10px;
+  margin-top: 8px;
   flex-shrink: 0;
 }
 
@@ -427,29 +497,11 @@ select {
   cursor: pointer;
 }
 
-.search-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 2px;
-  color: var(--muted);
-  font-size: 11px;
-}
-
-.user-located-tag {
-  padding: 1px 6px;
-  border-radius: 4px;
-  background: var(--blue-soft);
-  color: var(--blue-dark);
-  font-size: 10px;
-  font-weight: 700;
-}
-
 /* Parking list */
 .parking-list {
   flex: 1 1 auto;
   overflow-y: auto;
-  margin: 8px -6px 8px 0;
+  margin: 6px -6px 6px 0;
   padding-right: 6px;
   display: flex;
   flex-direction: column;
@@ -472,16 +524,28 @@ select {
   font-size: 13px;
 }
 
-.reset-btn {
+.empty-actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
   margin-top: 10px;
+}
+
+.reset-btn {
   padding: 6px 12px;
   border-radius: 8px;
   border: 1px solid var(--accent);
-  background: var(--accent-soft);
-  color: var(--accent-dark);
+  background: var(--accent);
+  color: #ffffff;
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
+}
+
+.reset-btn.secondary {
+  background: var(--surface-soft);
+  color: var(--ink-secondary);
+  border-color: var(--line);
 }
 
 .parking-item {
@@ -624,18 +688,15 @@ select {
   background: var(--accent);
 }
 
-.legend-marker.user {
-  background: var(--blue);
-}
-
 /* =========================================================
-   ZONE CARTE (Map)
+   ZONE CARTE (Épurée avec CartoDB Positron)
 ========================================================= */
 .map-wrap {
   position: relative;
   min-width: 0;
   height: 100vh;
   width: 100%;
+  background: #f8fafc;
 }
 
 .map {
@@ -700,7 +761,7 @@ select {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: rgba(37, 99, 235, 0.4);
+  background: rgba(37, 99, 235, 0.35);
   animation: user-radar 2s infinite ease-out;
 }
 
@@ -868,7 +929,7 @@ select {
 }
 
 /* =========================================================
-   BOTTOM CARD MOBILE (Au clic sur un parking)
+   BOTTOM CARD MOBILE
 ========================================================= */
 .mobile-bottom-card {
   display: none;
@@ -962,7 +1023,7 @@ select {
   box-shadow: 0 4px 12px rgba(21, 128, 61, 0.3);
 }
 
-/* Bouton Flottant Mobile Bascule Carte/Liste */
+/* Bouton Flottant Bascule Carte/Liste */
 .mobile-view-toggle-bar {
   display: none;
   position: absolute;
@@ -1172,7 +1233,7 @@ select {
   }
 
   .mobile-header {
-    display: block;
+    display: flex;
   }
 
   .mobile-view-toggle-bar {
@@ -1183,13 +1244,12 @@ select {
     display: block;
   }
 
-  /* Desktop sidebar masquée par défaut sur mobile, devient plein écran en vue "liste" */
   .sidebar {
     display: none;
     position: absolute;
     inset: 0;
     z-index: 500;
-    padding: 72px 14px 68px 14px;
+    padding: 100px 14px 68px 14px;
     height: 100svh;
   }
 
@@ -1201,6 +1261,10 @@ select {
     display: none;
   }
 
+  .desktop-radius-box {
+    display: none;
+  }
+
   .sidebar-intro {
     display: none;
   }
@@ -1209,13 +1273,11 @@ select {
     height: 100svh;
   }
 
-  /* Sur desktop les popups Leaflet sont bien, sur mobile le bottom sheet prend le relais */
   .custom-popup {
     display: none !important;
   }
 }
 
-/* Sur grand écran, modal centrée pour le filtre */
 @media (min-width: 769px) {
   .filter-modal-backdrop {
     align-items: center;
