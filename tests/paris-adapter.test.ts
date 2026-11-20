@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import {
   adaptParisParkingRecord,
   transformParisApiResponse,
+  cleanParkingName,
+  formatArrondissement,
   type ParisRawRecord,
 } from "../lib/adapters/paris.ts";
 
@@ -40,6 +42,7 @@ describe("Paris Open Data Parking Adapter", () => {
     assert.equal(result.availableSpaces, undefined, "availableSpaces must be undefined, not 0");
     assert.equal(result.status, "open");
     assert.equal(result.confidence, "unknown");
+    assert.equal(result.facilityType, "car");
     assert.equal(result.location.latitude, 48.85928758);
     assert.equal(result.location.longitude, 2.31465998);
     assert.equal(result.operator, "INDIGO");
@@ -49,6 +52,34 @@ describe("Paris Open Data Parking Adapter", () => {
     assert.equal(result.prmSpaces, 3);
     assert.equal(result.bicycleSpaces, 10);
     assert.equal(result.motorcycleSpaces, 34);
+  });
+
+  it("should format arrondissements and peripheral departements cleanly", () => {
+    assert.equal(formatArrondissement("1"), "1er arr.");
+    assert.equal(formatArrondissement("4"), "4e arr.");
+    assert.equal(formatArrondissement("15"), "15e arr.");
+    assert.equal(formatArrondissement("94"), "Dép. 94");
+    assert.equal(formatArrondissement(undefined), undefined);
+  });
+
+  it("should clean names preserving apostrophes and hyphens", () => {
+    assert.equal(cleanParkingName("PARKING SAINTE-ANNE"), "Parking Sainte-Anne");
+    assert.equal(cleanParkingName("JOUFFROY D ABBANS"), "Jouffroy D Abbans");
+  });
+
+  it("should detect bicycle-only stations like Velostations", () => {
+    const raw: ParisRawRecord = {
+      id: "velo-vg",
+      nom: "VELOSTATION VAN GOGH",
+      nb_places: 0,
+      nb_velo: 200,
+      geo_point_2d: { lat: 48.844, lon: 2.373 },
+    };
+
+    const result = adaptParisParkingRecord(raw);
+    assert.ok(result);
+    assert.equal(result.facilityType, "bicycle-station");
+    assert.equal(result.capacity, 200);
   });
 
   it("should reject records outside the Paris region", () => {

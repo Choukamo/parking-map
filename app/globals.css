@@ -60,9 +60,9 @@ select {
 .mobile-header {
   display: none;
   position: absolute;
-  top: 10px;
-  left: 10px;
-  right: 10px;
+  top: calc(10px + env(safe-area-inset-top, 0px));
+  left: calc(10px + env(safe-area-inset-left, 0px));
+  right: calc(10px + env(safe-area-inset-right, 0px));
   z-index: 1000;
   pointer-events: none;
   flex-direction: column;
@@ -221,6 +221,31 @@ select {
   cursor: pointer;
 }
 
+.mobile-geo-notice {
+  pointer-events: auto;
+  padding: 8px 12px;
+  background: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+  font-size: 12px;
+  line-height: 1.35;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  box-shadow: var(--shadow-sm);
+}
+
+.mobile-geo-notice button {
+  background: none;
+  border: none;
+  font-size: 16px;
+  color: #1e40af;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
 /* =========================================================
    SIDEBAR (Desktop)
 ========================================================= */
@@ -233,6 +258,27 @@ select {
   background: var(--surface);
   border-right: 1px solid var(--line);
   overflow: hidden;
+}
+
+.mobile-list-close-bar {
+  display: none;
+  margin-bottom: 12px;
+}
+
+.mobile-back-to-map-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #111827;
+  color: white;
+  border: none;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  width: 100%;
+  justify-content: center;
 }
 
 .sidebar-top {
@@ -497,7 +543,7 @@ select {
   cursor: pointer;
 }
 
-/* Parking list */
+/* Liste des parkings */
 .parking-list {
   flex: 1 1 auto;
   overflow-y: auto;
@@ -592,6 +638,11 @@ select {
   background: #e2e8f0;
   color: #334155;
   flex-shrink: 0;
+}
+
+.parking-operator-badge.bike {
+  background: #e0f2fe;
+  color: #0369a1;
 }
 
 .parking-item-addr {
@@ -704,7 +755,7 @@ select {
   height: 100%;
 }
 
-/* Marqueur Parking */
+/* Marqueurs Parking */
 .custom-map-pin-container {
   background: none;
   border: none;
@@ -739,6 +790,19 @@ select {
   background: #0f172a;
   transform: scale(1.25);
   box-shadow: 0 0 0 4px var(--accent-soft), 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.custom-marker.bicycle {
+  background: #0284c7;
+}
+
+.custom-marker.bicycle:hover {
+  background: #0369a1;
+}
+
+.custom-marker.bicycle.selected {
+  background: #0f172a;
+  box-shadow: 0 0 0 4px #e0f2fe, 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 /* Marqueur Utilisateur */
@@ -934,9 +998,9 @@ select {
 .mobile-bottom-card {
   display: none;
   position: absolute;
-  bottom: 68px;
-  left: 12px;
-  right: 12px;
+  bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  left: calc(12px + env(safe-area-inset-left, 0px));
+  right: calc(12px + env(safe-area-inset-right, 0px));
   z-index: 1000;
   background: #ffffff;
   border-radius: 16px;
@@ -1027,7 +1091,7 @@ select {
 .mobile-view-toggle-bar {
   display: none;
   position: absolute;
-  bottom: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   left: 0;
   right: 0;
   z-index: 999;
@@ -1075,6 +1139,7 @@ select {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
   animation: sheet-slide-up 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -1249,7 +1314,7 @@ select {
     position: absolute;
     inset: 0;
     z-index: 500;
-    padding: 100px 14px 68px 14px;
+    padding: calc(90px + env(safe-area-inset-top, 0px)) 14px calc(70px + env(safe-area-inset-bottom, 0px)) 14px;
     height: 100svh;
   }
 
@@ -1275,6 +1340,21 @@ select {
 
   .custom-popup {
     display: none !important;
+  }
+
+  /* Repositionnement du contrôle zoom pour ne pas heurter la barre de recherche */
+  .leaflet-top.leaflet-left {
+    top: auto;
+    bottom: calc(75px + env(safe-area-inset-bottom, 0px));
+    left: auto;
+    right: 12px;
+  }
+
+  .leaflet-control-zoom {
+    border: none !important;
+    box-shadow: var(--shadow-md) !important;
+    border-radius: 10px !important;
+    overflow: hidden;
   }
 }
 

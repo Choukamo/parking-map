@@ -5,35 +5,36 @@ import type { ParkingsResponse } from "@/types/parking";
 const API_BASE_URL =
   "https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/stationnement-en-ouvrage/records";
 
-export const revalidate = 3600; // Cache 1h sur Next.js / Vercel
+export const revalidate = 3600; // Cache 1h sur Next.js ISR
 
 export async function GET() {
   try {
     // Le jeu de données contient actuellement 125 parkings concédés.
-    // L'API ODS plafonnant la limite à 100 par requête, on effectue 2 appels paginés (0-99 et 100-199).
-    const [page1Res, page2Res] = await Promise.all([
-      fetch(`${API_BASE_URL}?limit=100&offset=0`, {
+    // L'API Opendatasoft plafonnant la limite à 100 par requête, on effectue 2 requêtes paginées avec timeout.
+    const fetchPage = async (offset: number) => {
+      const res = await fetch(`${API_BASE_URL}?limit=100&offset=${offset}`, {
         next: { revalidate: 3600 },
         headers: { Accept: "application/json" },
-      }),
-      fetch(`${API_BASE_URL}?limit=100&offset=100`, {
-        next: { revalidate: 3600 },
-        headers: { Accept: "application/json" },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!res.ok) {
+        throw new Error(`Erreur API Paris Data (offset ${offset}): ${res.status} ${res.statusText}`);
+      }
+      const data: ParisApiResponse = await res.json();
+      return data;
+    };
+
+    const [page1Data, page2Data] = await Promise.all([
+      fetchPage(0),
+      fetchPage(100).catch((err) => {
+        console.warn("Échec page 2 de Paris Data, conservation de la page 1 :", err);
+        return { total_count: 0, results: [] } as ParisApiResponse;
       }),
     ]);
 
-    if (!page1Res.ok) {
-      throw new Error(`Erreur API Paris Data (Page 1): ${page1Res.status} ${page1Res.statusText}`);
-    }
-
-    const data1: ParisApiResponse = await page1Res.json();
-    let allRecords: ParisRawRecord[] = data1.results || [];
-
-    if (page2Res.ok) {
-      const data2: ParisApiResponse = await page2Res.json();
-      if (Array.isArray(data2.results)) {
-        allRecords = allRecords.concat(data2.results);
-      }
+    let allRecords: ParisRawRecord[] = page1Data.results || [];
+    if (Array.isArray(page2Data.results)) {
+      allRecords = allRecords.concat(page2Data.results);
     }
 
     const parkings = transformParisApiResponse({
@@ -50,7 +51,11 @@ export async function GET() {
       parkings,
     };
 
-    return NextResponse.json(responsePayload);
+    return NextResponse.json(responsePayload, {
+      headers: {
+        "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=7200",
+      },
+    });
   } catch (error) {
     console.error("Échec de récupération des données parkings Paris :", error);
     return NextResponse.json(
@@ -58,7 +63,12 @@ export async function GET() {
         error: "Impossible de charger les données de stationnement de Paris.",
         details: error instanceof Error ? error.message : "Erreur inconnue",
       },
-      { status: 502 }
+      {
+        status: 502,
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      }
     );
   }
 }

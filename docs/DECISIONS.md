@@ -29,3 +29,11 @@ Le bandeau jaune informant de l'absence de capteur temps réel municipal polluai
 
 ## 2026-11 — Mise en cache ISR de 1 heure
 L'API route `/api/parkings/paris` met en cache la réponse d'OpenDataSoft avec une réévaluation toutes les 3600 secondes (`revalidate = 3600`). Cela protège les serveurs municipaux contre le sur-requêtage tout en garantissant des temps de chargement quasi-instantanés (< 50ms) pour les utilisateurs finaux.
+
+## 2026-11 — Robustesse mobile, iOS Safe Areas et gestion des utilisateurs distants
+1. **Lien Google Maps épuré :** Suppression du paramètre erroné `destination_place_id` qui provoquait des échecs de routage dans l'application native Google Maps. Utilisation exclusive des coordonnées GPS `destination=lat,lon`.
+2. **Gestion des utilisateurs hors Paris :** Si un utilisateur autorise sa géolocalisation depuis une autre région (> 50 km de Paris), l'application bascule automatiquement la vue sur « Tout Paris » et affiche une notification informative plutôt que d'afficher un écran vide trompeur.
+3. **Compatibilité encoches et barres iOS (Safe Areas) :** Intégration de `env(safe-area-inset-top)` et `env(safe-area-inset-bottom)` dans les barres mobiles et le tiroir coulissant.
+4. **Identification des Vélostations :** Distinction claire des stations vélo (qui possèdent 0 place automobile) avec badge distinctif et capacité vélo.
+5. **Formatage rigoureux des arrondissements :** Normalisation en `1er arr.` (au lieu de `1e arr.`) et traitement des communes périphériques (`Dép. 94`).
+

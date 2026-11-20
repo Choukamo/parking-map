@@ -2,6 +2,8 @@ export type ParkingStatus = "open" | "closed" | "unknown";
 
 export type ParkingConfidence = "official-realtime" | "historical-estimate" | "unknown";
 
+export type FacilityType = "car" | "bicycle-station";
+
 export interface ParkingPricing {
   oneHour?: number;
   twoHours?: number;
@@ -22,6 +24,7 @@ export interface ParkingAvailability {
   observedAt: string;
   sourceId: string;
   confidence: ParkingConfidence;
+  facilityType?: FacilityType;
 
   // Métadonnées officielles complémentaires
   address?: string;

@@ -22,7 +22,7 @@ export interface ParkingFilters {
   sortOption: SortOption;
   radiusKm?: number | "all"; // ex: 0.5, 1, 2, 5 ou "all"
   maxPriceOneHour?: number; // ex: 3.5, 4.5, 5.5
-  operator?: string; // "all", "INDIGO", "SAEMES", etc.
+  operator?: string; // "all", "INDIGO", "SAEMES", "SAGS", "Q PARK", etc.
   onlyOpen24?: boolean;
   onlyPrm?: boolean;
   onlyBicycle?: boolean;
@@ -63,6 +63,19 @@ export function calculateDistanceKm(
 }
 
 /**
+ * Détermine si une coordonnée GPS est éloignée de Paris (ex: utilisateur testant hors Île-de-France)
+ */
+export function isFarFromParis(coords: Coordinates, maxDistanceKm = 50): boolean {
+  const dist = calculateDistanceKm(
+    coords.latitude,
+    coords.longitude,
+    PARIS_DEFAULT_COORDS.latitude,
+    PARIS_DEFAULT_COORDS.longitude
+  );
+  return dist > maxDistanceKm;
+}
+
+/**
  * Formate une distance en kilomètres pour un affichage lisible
  */
 export function formatDistance(distanceKm: number): string {
@@ -74,17 +87,14 @@ export function formatDistance(distanceKm: number): string {
 }
 
 /**
- * Génère le lien universel d'itinéraire vers Google Maps
+ * Génère le lien universel d'itinéraire vers Google Maps.
+ * Utilise les coordonnées GPS précises pour une navigation fiable sur Web, Android et iOS.
  */
 export function getGoogleMapsDirectionsUrl(
   lat: number,
-  lon: number,
-  parkingName?: string
+  lon: number
 ): string {
-  const query = parkingName ? `${parkingName}, Paris` : `${lat},${lon}`;
-  return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}&destination_place_id=${encodeURIComponent(
-    query
-  )}`;
+  return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}`;
 }
 
 /**
@@ -143,9 +153,11 @@ export function filterAndSortParkings(
 
   // 5. Filtre opérateur
   if (filters.operator && filters.operator !== "all") {
-    const targetOp = filters.operator.toUpperCase();
+    const targetOp = filters.operator.toUpperCase().replace("-", " ");
     list = list.filter(
-      (p) => p.operator && p.operator.toUpperCase().includes(targetOp)
+      (p) =>
+        p.operator &&
+        p.operator.toUpperCase().replace("-", " ").includes(targetOp)
     );
   }
 
@@ -174,7 +186,7 @@ export function filterAndSortParkings(
     );
   }
 
-  // 10. Tri
+  // 10. Tri avec départage par distance
   return list.sort((a, b) => {
     switch (filters.sortOption) {
       case "distance-asc": {
@@ -195,7 +207,13 @@ export function filterAndSortParkings(
         if (priceA === undefined && priceB === undefined) return 0;
         if (priceA === undefined) return 1;
         if (priceB === undefined) return -1;
-        return priceA - priceB;
+        const diff = priceA - priceB;
+        if (diff !== 0) return diff;
+        // Départage par distance si même tarif
+        if (a.distanceKm !== undefined && b.distanceKm !== undefined) {
+          return a.distanceKm - b.distanceKm;
+        }
+        return 0;
       }
       case "price-desc": {
         const priceA = a.pricing?.oneHour;
@@ -203,16 +221,27 @@ export function filterAndSortParkings(
         if (priceA === undefined && priceB === undefined) return 0;
         if (priceA === undefined) return 1;
         if (priceB === undefined) return -1;
-        return priceB - priceA;
+        const diff = priceB - priceA;
+        if (diff !== 0) return diff;
+        // Départage par distance si même tarif
+        if (a.distanceKm !== undefined && b.distanceKm !== undefined) {
+          return a.distanceKm - b.distanceKm;
+        }
+        return 0;
       }
       case "capacity-desc": {
         const capA = a.capacity || 0;
         const capB = b.capacity || 0;
-        return capB - capA;
+        const diff = capB - capA;
+        if (diff !== 0) return diff;
+        if (a.distanceKm !== undefined && b.distanceKm !== undefined) {
+          return a.distanceKm - b.distanceKm;
+        }
+        return 0;
       }
       case "default":
       default:
-        // Par défaut, si une position est connue, trier naturellement par distance pour la pertinence
+        // Par défaut, trier par distance si disponible
         if (a.distanceKm !== undefined && b.distanceKm !== undefined) {
           return a.distanceKm - b.distanceKm;
         }

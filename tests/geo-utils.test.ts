@@ -5,6 +5,7 @@ import {
   formatDistance,
   getGoogleMapsDirectionsUrl,
   filterAndSortParkings,
+  isFarFromParis,
   type ParkingFilters,
 } from "../lib/utils/geo.ts";
 import type { ParkingAvailability } from "../types/parking.ts";
@@ -21,11 +22,20 @@ describe("Geo Utilities & Advanced Filters", () => {
     assert.equal(formatDistance(1.234), "1.2 km");
   });
 
-  it("should generate a valid Google Maps directions URL", () => {
-    const url = getGoogleMapsDirectionsUrl(48.8566, 2.3522, "Parking Hôtel de Ville");
-    assert.ok(url.startsWith("https://www.google.com/maps/dir/"));
-    assert.ok(url.includes("destination=48.8566,2.3522"));
-    assert.ok(url.includes("Parking%20H%C3%B4tel%20de%20Ville"));
+  it("should generate a clean universal Google Maps directions URL without broken place_id", () => {
+    const url = getGoogleMapsDirectionsUrl(48.8566, 2.3522);
+    assert.equal(url, "https://www.google.com/maps/dir/?api=1&destination=48.8566,2.3522");
+  });
+
+  it("should identify whether a location is far from Paris", () => {
+    // Dans Paris
+    assert.equal(isFarFromParis({ latitude: 48.8566, longitude: 2.3522 }), false);
+    // Petite couronne (Boulogne-Billancourt, ~9km)
+    assert.equal(isFarFromParis({ latitude: 48.8396, longitude: 2.2399 }), false);
+    // Lyon (~390 km)
+    assert.equal(isFarFromParis({ latitude: 45.75, longitude: 4.85 }), true);
+    // Marseille (~660 km)
+    assert.equal(isFarFromParis({ latitude: 43.2965, longitude: 5.3698 }), true);
   });
 
   const sampleParkings: ParkingAvailability[] = [
@@ -72,14 +82,29 @@ describe("Geo Utilities & Advanced Filters", () => {
       pricing: { oneHour: 5.5 },
       prmSpaces: 5,
     },
+    {
+      id: "p4",
+      name: "Parking Rivoli",
+      location: { latitude: 48.857, longitude: 2.349 },
+      capacity: 400,
+      status: "open",
+      observedAt: "2026-11-18T10:00:00Z",
+      sourceId: "paris-data",
+      confidence: "unknown",
+      operator: "SAGS",
+      pricing: { oneHour: 4.8 }, // Même prix que p1
+    },
   ];
 
-  it("should sort parkings by price ascending (cheapest first)", () => {
+  it("should sort parkings by price ascending with distance tie-breaker", () => {
+    const user = { latitude: 48.8575, longitude: 2.3485 }; // Plus près de p4 que p1
     const filters: ParkingFilters = { sortOption: "price-asc" };
-    const sorted = filterAndSortParkings(sampleParkings, filters, null);
+    const sorted = filterAndSortParkings(sampleParkings, filters, user);
     assert.equal(sorted[0].id, "p2"); // 3.5€
-    assert.equal(sorted[1].id, "p1"); // 4.8€
-    assert.equal(sorted[2].id, "p3"); // 5.5€
+    // p1 et p4 coûtent tous les deux 4.8€, mais p4 est plus proche du point utilisateur
+    assert.equal(sorted[1].id, "p4"); // 4.8€ (plus proche)
+    assert.equal(sorted[2].id, "p1"); // 4.8€
+    assert.equal(sorted[3].id, "p3"); // 5.5€
   });
 
   it("should filter by maximum price (e.g. <= 4.0€)", () => {
@@ -113,17 +138,18 @@ describe("Geo Utilities & Advanced Filters", () => {
 
   it("should filter by radius when reference coordinates are provided", () => {
     const user = { latitude: 48.8585, longitude: 2.3475 };
-    // p1 est à ~0.1 km, p2 et p3 sont à > 1.5 km
-    const filters: ParkingFilters = { sortOption: "default", radiusKm: 1.0 };
+    // p1 et p4 sont à < 0.2 km, p2 et p3 sont à > 1.5 km
+    const filters: ParkingFilters = { sortOption: "default", radiusKm: 0.5 };
     const filtered = filterAndSortParkings(sampleParkings, filters, user);
-    assert.equal(filtered.length, 1);
-    assert.equal(filtered[0].id, "p1");
+    assert.equal(filtered.length, 2);
+    assert.ok(filtered.some((p) => p.id === "p1"));
+    assert.ok(filtered.some((p) => p.id === "p4"));
   });
 
   it("should return all parkings when radiusKm is 'all'", () => {
     const user = { latitude: 48.8585, longitude: 2.3475 };
     const filters: ParkingFilters = { sortOption: "default", radiusKm: "all" };
     const filtered = filterAndSortParkings(sampleParkings, filters, user);
-    assert.equal(filtered.length, 3);
+    assert.equal(filtered.length, 4);
   });
 });

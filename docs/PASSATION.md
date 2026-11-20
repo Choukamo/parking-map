@@ -40,7 +40,7 @@
 | **Filtres avancés** | `components/parking-map.tsx` | ✅ Prix max horaire, 24h/24, accès PMR, exploitant |
 | **Tiroir mobile (Bottom Sheet)** | `components/parking-map.tsx`, `app/globals.css` | ✅ Tiroir rétractable moderne adapté aux smartphones |
 | **Fiche parking & Itinéraire** | `components/parking-map.tsx` | ✅ Aperçu au clic + bouton direct Google Maps |
-| **Suite de tests automatisés** | `tests/paris-adapter.test.ts`, `tests/geo-utils.test.ts` | ✅ 16 tests unitaires passants |
+| **Suite de tests automatisés** | `tests/paris-adapter.test.ts`, `tests/geo-utils.test.ts` | ✅ 20 tests unitaires passants |
 
 ---
 

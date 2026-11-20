@@ -1,4 +1,4 @@
-import type { ParkingAvailability, ParkingStatus } from "../../types/parking";
+import type { ParkingAvailability, ParkingStatus, FacilityType } from "../../types/parking";
 
 export interface ParisRawRecord {
   id?: string;
@@ -33,24 +33,41 @@ export interface ParisApiResponse {
 /**
  * Normalise le nom du parking pour un affichage lisible
  */
-function cleanParkingName(name?: string): string {
+export function cleanParkingName(name?: string): string {
   if (!name) return "Parking public";
-  // Remplacer les majuscules agressives si tout est en majuscule
   const trimmed = name.trim();
+  // Remplacer les majuscules intégrales par une casse soignée
   if (trimmed === trimmed.toUpperCase()) {
     return trimmed
       .toLowerCase()
-      .split(" ")
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(" ");
+      .split(/([\s\-'’]+)/)
+      .map((token) => {
+        if (/^[\s\-'’]+$/.test(token)) return token;
+        return token.charAt(0).toUpperCase() + token.slice(1);
+      })
+      .join("");
   }
   return trimmed;
 }
 
 /**
+ * Formate l'arrondissement parisien ou le département périphérique de manière rigoureuse
+ */
+export function formatArrondissement(arrdt?: string): string | undefined {
+  if (!arrdt) return undefined;
+  const trimmed = arrdt.trim();
+  const num = parseInt(trimmed, 10);
+  if (isNaN(num)) return trimmed;
+  if (num === 1) return "1er arr.";
+  if (num >= 2 && num <= 20) return `${num}e arr.`;
+  if (num > 20) return `Dép. ${num}`;
+  return `${trimmed}e arr.`;
+}
+
+/**
  * Détermine le statut d'ouverture d'après le libellé horaire
  */
-function parseStatus(horaire?: string): ParkingStatus {
+export function parseStatus(horaire?: string): ParkingStatus {
   if (!horaire) return "unknown";
   const lower = horaire.toLowerCase();
   if (lower.includes("fermé") || lower.includes("ferme")) {
@@ -65,7 +82,7 @@ function parseStatus(horaire?: string): ParkingStatus {
 /**
  * Vérifie si les coordonnées géographiques sont valides et situées dans la région parisienne
  */
-function isValidParisLocation(lat: number, lon: number): boolean {
+export function isValidParisLocation(lat: number, lon: number): boolean {
   return (
     Number.isFinite(lat) &&
     Number.isFinite(lon) &&
@@ -103,7 +120,14 @@ export function adaptParisParkingRecord(
     return null;
   }
 
-  // Capacité totale (valider que c'est un entier positif)
+  // Détection des installations dédiées aux vélos (ex: Vélostation Van Gogh / Montparnasse)
+  const isBicycleStation =
+    (!record.nb_places || record.nb_places === 0) &&
+    Boolean(record.nb_velo && record.nb_velo > 0);
+
+  const facilityType: FacilityType = isBicycleStation ? "bicycle-station" : "car";
+
+  // Capacité totale (voitures si car, sinon vélos si vélostation)
   let capacity: number | undefined = undefined;
   if (
     record.nb_places !== null &&
@@ -111,6 +135,8 @@ export function adaptParisParkingRecord(
     record.nb_places > 0
   ) {
     capacity = Math.floor(record.nb_places);
+  } else if (isBicycleStation && record.nb_velo) {
+    capacity = Math.floor(record.nb_velo);
   }
 
   // RÈGLE FONDAMENTALE : Ne jamais inventer de places disponibles si la source ne les fournit pas
@@ -131,9 +157,10 @@ export function adaptParisParkingRecord(
     observedAt: record.mis_a_jour || new Date().toISOString(),
     sourceId: "paris-data-stationnement-en-ouvrage",
     confidence: "unknown", // Donnée officielle statique/référentielle
+    facilityType,
     address: record.adresse?.trim() || undefined,
     operator: record.deleg?.trim() || undefined,
-    arrondissement: record.arrdt ? `${record.arrdt}e arr.` : undefined,
+    arrondissement: formatArrondissement(record.arrdt),
     openingHours: record.horaire_na?.trim() || undefined,
     pricing: {
       oneHour: record.tarif_1h ?? undefined,

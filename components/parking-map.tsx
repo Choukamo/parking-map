@@ -9,41 +9,85 @@ import {
   formatDistance,
   getGoogleMapsDirectionsUrl,
   filterAndSortParkings,
+  isFarFromParis,
   PARIS_DEFAULT_COORDS,
   type Coordinates,
   type ParkingFilters,
   type ParkingWithDistance,
 } from "@/lib/utils/geo";
 
-const PARIS_CENTER: [number, number] = [PARIS_DEFAULT_COORDS.latitude, PARIS_DEFAULT_COORDS.longitude];
+const PARIS_CENTER: [number, number] = [
+  PARIS_DEFAULT_COORDS.latitude,
+  PARIS_DEFAULT_COORDS.longitude,
+];
 
-function createParkingIcon(isSelected: boolean) {
-  return L.divIcon({
-    className: "custom-map-pin-container",
-    html: `
-      <div class="custom-marker ${isSelected ? "selected" : ""}" title="Parking public">
-        <span class="marker-letter">P</span>
-      </div>
-    `,
-    iconSize: [28, 28],
-    iconAnchor: [14, 14],
-    popupAnchor: [0, -16],
-  });
-}
+// Icônes Leaflet pré-instanciées pour une fluidité maximale (pas de re-création à chaque render)
+const DEFAULT_CAR_ICON = L.divIcon({
+  className: "custom-map-pin-container",
+  html: `
+    <div class="custom-marker" title="Parking public">
+      <span class="marker-letter">P</span>
+    </div>
+  `,
+  iconSize: [28, 28],
+  iconAnchor: [14, 14],
+  popupAnchor: [0, -16],
+});
 
-function createUserIcon() {
-  return L.divIcon({
-    className: "custom-user-pin-container",
-    html: `
-      <div class="user-marker" title="Votre position actuelle">
-        <div class="user-pulse"></div>
-        <div class="user-core"></div>
-      </div>
-    `,
-    iconSize: [24, 24],
-    iconAnchor: [12, 12],
-    popupAnchor: [0, -14],
-  });
+const SELECTED_CAR_ICON = L.divIcon({
+  className: "custom-map-pin-container",
+  html: `
+    <div class="custom-marker selected" title="Parking sélectionné">
+      <span class="marker-letter">P</span>
+    </div>
+  `,
+  iconSize: [28, 28],
+  iconAnchor: [14, 14],
+  popupAnchor: [0, -16],
+});
+
+const BICYCLE_STATION_ICON = L.divIcon({
+  className: "custom-map-pin-container",
+  html: `
+    <div class="custom-marker bicycle" title="Vélostation">
+      <span class="marker-letter">🚲</span>
+    </div>
+  `,
+  iconSize: [28, 28],
+  iconAnchor: [14, 14],
+  popupAnchor: [0, -16],
+});
+
+const SELECTED_BICYCLE_ICON = L.divIcon({
+  className: "custom-map-pin-container",
+  html: `
+    <div class="custom-marker bicycle selected" title="Vélostation sélectionnée">
+      <span class="marker-letter">🚲</span>
+    </div>
+  `,
+  iconSize: [28, 28],
+  iconAnchor: [14, 14],
+  popupAnchor: [0, -16],
+});
+
+const USER_ICON = L.divIcon({
+  className: "custom-user-pin-container",
+  html: `
+    <div class="user-marker" title="Votre position actuelle">
+      <div class="user-pulse"></div>
+      <div class="user-core"></div>
+    </div>
+  `,
+  iconSize: [24, 24],
+  iconAnchor: [12, 12],
+  popupAnchor: [0, -14],
+});
+
+function getParkingIcon(isSelected: boolean, isBicycleStation: boolean) {
+  if (isBicycleStation) {
+    return isSelected ? SELECTED_BICYCLE_ICON : BICYCLE_STATION_ICON;
+  }
+  return isSelected ? SELECTED_CAR_ICON : DEFAULT_CAR_ICON;
 }
 
 interface MapTarget {
@@ -52,13 +96,27 @@ interface MapTarget {
   zoom?: number;
 }
 
-function MapController({ target }: { target: MapTarget | null }) {
+function MapController({
+  target,
+  mobileTab,
+}: {
+  target: MapTarget | null;
+  mobileTab: "map" | "list";
+}) {
   const map = useMap();
+
+  // Forcer l'actualisation de la géométrie Leaflet lors du basculement d'onglet ou redimensionnement
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      map.invalidateSize();
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [mobileTab, map]);
 
   useEffect(() => {
     if (target) {
       map.flyTo([target.latitude, target.longitude], target.zoom || 15, {
-        duration: 0.9,
+        duration: 0.85,
       });
     }
   }, [target, map]);
@@ -69,7 +127,7 @@ function MapController({ target }: { target: MapTarget | null }) {
 const DEFAULT_FILTERS: ParkingFilters = {
   search: "",
   sortOption: "distance-asc",
-  radiusKm: 1, // 1 km par défaut autour de l'utilisateur pour ne pas surcharger la carte
+  radiusKm: 1, // 1 km par défaut autour de l'utilisateur
   maxPriceOneHour: undefined,
   operator: "all",
   onlyOpen24: false,
@@ -87,6 +145,7 @@ export function ParkingMap() {
   const [userLocation, setUserLocation] = useState<Coordinates | null>(null);
   const [geoLoading, setGeoLoading] = useState(false);
   const [geoError, setGeoError] = useState<string | null>(null);
+  const [outsideParisAlert, setOutsideParisAlert] = useState<string | null>(null);
 
   // Filtres
   const [filters, setFilters] = useState<ParkingFilters>(DEFAULT_FILTERS);
@@ -99,9 +158,24 @@ export function ParkingMap() {
   // Vue Mobile : 'map' ou 'list'
   const [mobileTab, setMobileTab] = useState<"map" | "list">("map");
 
+  // Raccourci clavier Echap pour fermer filtres et fiche active
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        if (isFilterOpen) {
+          setIsFilterOpen(false);
+        } else if (selectedParking) {
+          setSelectedParking(null);
+        }
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isFilterOpen, selectedParking]);
+
   const handleGeolocate = useCallback(() => {
     if (typeof window === "undefined" || !navigator.geolocation) {
-      setGeoError("La géolocalisation n'est pas disponible sur cet appareil.");
+      setGeoError("La géolocalisation n'est pas supportée par votre navigateur.");
       return;
     }
 
@@ -115,19 +189,42 @@ export function ParkingMap() {
           longitude: pos.coords.longitude,
         };
         setUserLocation(coords);
-        setMapTarget({
-          latitude: coords.latitude,
-          longitude: coords.longitude,
-          zoom: 15,
-        });
         setGeoLoading(false);
+
+        // Détection de l'éloignement (> 50 km de Paris)
+        if (isFarFromParis(coords)) {
+          const distFromParis = Math.round(
+            calculateDistanceKm(
+              coords.latitude,
+              coords.longitude,
+              PARIS_DEFAULT_COORDS.latitude,
+              PARIS_DEFAULT_COORDS.longitude
+            )
+          );
+          setOutsideParisAlert(
+            `Vous êtes à ~${distFromParis} km de Paris. Le rayon a été réglé sur « Tout Paris » pour visualiser les parkings.`
+          );
+          setFilters((prev) => ({ ...prev, radiusKm: "all" }));
+          setMapTarget({
+            latitude: PARIS_DEFAULT_COORDS.latitude,
+            longitude: PARIS_DEFAULT_COORDS.longitude,
+            zoom: 13,
+          });
+        } else {
+          setOutsideParisAlert(null);
+          setMapTarget({
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+            zoom: 15,
+          });
+        }
       },
       (err) => {
         setGeoLoading(false);
         if (err.code === err.PERMISSION_DENIED) {
-          setGeoError("Autorisation refusée. Vous pouvez choisir un quartier manuellement.");
+          setGeoError("Géolocalisation refusée. Vous pouvez utiliser le centre de Paris.");
         } else {
-          setGeoError("Position introuvable.");
+          setGeoError("Impossible de récupérer votre position.");
         }
       },
       {
@@ -138,8 +235,10 @@ export function ParkingMap() {
     );
   }, []);
 
-  // Chargement des parkings & géolocalisation automatique initiale
+  // Chargement des parkings & géolocalisation fluide à l'arrivée
   useEffect(() => {
+    let isMounted = true;
+
     async function init() {
       try {
         setLoading(true);
@@ -149,34 +248,48 @@ export function ParkingMap() {
           throw new Error(`Erreur réseau (${res.status})`);
         }
         const data: ParkingsResponse = await res.json();
-        setParkings(data.parkings || []);
+        if (isMounted) {
+          setParkings(data.parkings || []);
+        }
       } catch (err) {
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Impossible de charger les données."
-        );
+        if (isMounted) {
+          setError(
+            err instanceof Error
+              ? err.message
+              : "Impossible de charger les données."
+          );
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
 
-      // Tenter une géolocalisation fluide à l'arrivée
+      // Géolocalisation discrète au démarrage
       if (typeof window !== "undefined" && navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           (pos) => {
+            if (!isMounted) return;
             const coords: Coordinates = {
               latitude: pos.coords.latitude,
               longitude: pos.coords.longitude,
             };
             setUserLocation(coords);
-            setMapTarget({
-              latitude: coords.latitude,
-              longitude: coords.longitude,
-              zoom: 15,
-            });
+            if (isFarFromParis(coords)) {
+              setFilters((prev) => ({ ...prev, radiusKm: "all" }));
+              setOutsideParisAlert(
+                "Position hors Île-de-France détectée : vue réglée sur Tout Paris."
+              );
+            } else {
+              setMapTarget({
+                latitude: coords.latitude,
+                longitude: coords.longitude,
+                zoom: 15,
+              });
+            }
           },
           () => {
-            // Silencieux au premier chargement si refusé
+            // Silencieux au démarrage si l'utilisateur refuse
           },
           { enableHighAccuracy: true, timeout: 6000, maximumAge: 60000 }
         );
@@ -184,11 +297,19 @@ export function ParkingMap() {
     }
 
     init();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  // Point de repère géographique (position réelle si connue, sinon centre de Paris)
+  // Point de repère pour les calculs de distance
   const activeReference = useMemo<Coordinates>(() => {
-    return userLocation || PARIS_DEFAULT_COORDS;
+    // Si l'utilisateur est loin de Paris (> 50 km), centrer les calculs et le cercle sur le centre de Paris
+    if (userLocation && !isFarFromParis(userLocation)) {
+      return userLocation;
+    }
+    return PARIS_DEFAULT_COORDS;
   }, [userLocation]);
 
   const processedParkings = useMemo(() => {
@@ -240,7 +361,9 @@ export function ParkingMap() {
       <header className="mobile-header" role="banner">
         <div className="mobile-search-bar">
           <input
+            id="mobile-search-input"
             type="search"
+            aria-label="Rechercher un parking par nom, rue ou arrondissement"
             placeholder="Rechercher (rue, quartier, nom)..."
             value={filters.search || ""}
             onChange={(e) =>
@@ -263,7 +386,7 @@ export function ParkingMap() {
             type="button"
             className={`mobile-filter-trigger ${activeFiltersCount > 0 ? "has-active" : ""}`}
             onClick={() => setIsFilterOpen(true)}
-            aria-label="Ouvrir les filtres"
+            aria-label="Ouvrir les filtres avancés"
           >
             <svg
               width="17"
@@ -274,6 +397,7 @@ export function ParkingMap() {
               strokeWidth="2.2"
               strokeLinecap="round"
               strokeLinejoin="round"
+              aria-hidden="true"
             >
               <line x1="4" y1="21" x2="4" y2="14" />
               <line x1="4" y1="10" x2="4" y2="3" />
@@ -302,7 +426,7 @@ export function ParkingMap() {
           </button>
         </div>
 
-        {/* SÉLECTEUR RAPIDE DE RAYON (Pill Bar sous la recherche) */}
+        {/* SÉLECTEUR RAPIDE DE RAYON (Pastilles au pouce sous la recherche) */}
         <div className="mobile-radius-bar">
           <span className="radius-label">Rayon :</span>
           {[0.5, 1, 2, 5].map((dist) => (
@@ -324,18 +448,46 @@ export function ParkingMap() {
           </button>
         </div>
 
+        {outsideParisAlert && (
+          <div className="mobile-geo-notice">
+            <span>{outsideParisAlert}</span>
+            <button
+              type="button"
+              onClick={() => setOutsideParisAlert(null)}
+              aria-label="Fermer la notification"
+            >
+              &times;
+            </button>
+          </div>
+        )}
+
         {geoError && (
           <div className="mobile-geo-alert">
             <span>{geoError}</span>
-            <button type="button" onClick={() => setGeoError(null)}>
+            <button
+              type="button"
+              onClick={() => setGeoError(null)}
+              aria-label="Fermer l'alerte"
+            >
               &times;
             </button>
           </div>
         )}
       </header>
 
-      {/* SIDEBAR DESKTOP */}
+      {/* SIDEBAR DESKTOP & LISTE MOBILE */}
       <aside className={`sidebar ${mobileTab === "list" ? "mobile-visible" : ""}`}>
+        {/* Bouton retour carte visible uniquement sur mobile en mode liste */}
+        <div className="mobile-list-close-bar">
+          <button
+            type="button"
+            className="mobile-back-to-map-btn"
+            onClick={() => setMobileTab("map")}
+          >
+            ← Revenir à la carte
+          </button>
+        </div>
+
         <div className="sidebar-top">
           <div className="brand">
             <div className="brand-mark" aria-hidden="true">
@@ -386,7 +538,7 @@ export function ParkingMap() {
             </div>
           </div>
 
-          {/* Bouton Géolocalisation */}
+          {/* Bouton Géolocalisation Desktop */}
           <div className="geoloc-section">
             <button
               type="button"
@@ -448,6 +600,7 @@ export function ParkingMap() {
                 strokeWidth="2.2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
+                aria-hidden="true"
               >
                 <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
               </svg>
@@ -475,6 +628,7 @@ export function ParkingMap() {
             <input
               id="parking-search-desktop"
               type="search"
+              aria-label="Rechercher par nom, rue ou arrondissement"
               className="search-input"
               placeholder="Rechercher par nom, rue, 15e..."
               value={filters.search || ""}
@@ -524,9 +678,9 @@ export function ParkingMap() {
                 p.distanceKm !== undefined ? formatDistance(p.distanceKm) : null;
               const directionsUrl = getGoogleMapsDirectionsUrl(
                 p.location.latitude,
-                p.location.longitude,
-                p.name
+                p.location.longitude
               );
+              const isBicycleStation = p.facilityType === "bicycle-station";
 
               return (
                 <article
@@ -544,9 +698,11 @@ export function ParkingMap() {
                 >
                   <div className="parking-item-header">
                     <h3 className="parking-item-title">{p.name}</h3>
-                    {p.operator && (
+                    {isBicycleStation ? (
+                      <span className="parking-operator-badge bike">Vélostation</span>
+                    ) : p.operator ? (
                       <span className="parking-operator-badge">{p.operator}</span>
-                    )}
+                    ) : null}
                   </div>
 
                   {p.address && <p className="parking-item-addr">{p.address}</p>}
@@ -559,13 +715,15 @@ export function ParkingMap() {
                     )}
                     {p.capacity ? (
                       <span className="parking-capacity-badge">
-                        {p.capacity} places
+                        {isBicycleStation ? "🚲" : "🚗"} {p.capacity} places
                       </span>
                     ) : null}
                     {p.pricing?.oneHour ? (
                       <span className="parking-price">
                         {p.pricing.oneHour.toFixed(2)} € / 1h
                       </span>
+                    ) : isBicycleStation ? (
+                      <span className="parking-price muted">Réservé vélos</span>
                     ) : (
                       <span className="parking-price muted">Tarif 1h N/C</span>
                     )}
@@ -589,6 +747,7 @@ export function ParkingMap() {
                         strokeWidth="2.5"
                         strokeLinecap="round"
                         strokeLinejoin="round"
+                        aria-hidden="true"
                       >
                         <polygon points="3 11 22 2 13 21 11 13 3 11" />
                       </svg>
@@ -609,7 +768,7 @@ export function ParkingMap() {
         </div>
       </aside>
 
-      {/* CARTE PLEIN ÉCRAN AVEC STYLE ÉPURÉ (CARTO POSITRON) */}
+      {/* CARTE PLEIN ÉCRAN CARTODB POSITRON */}
       <section className="map-wrap" aria-label="Carte des disponibilités">
         <MapContainer
           className="map"
@@ -617,7 +776,6 @@ export function ParkingMap() {
           zoom={14}
           scrollWheelZoom
         >
-          {/* FOND DE CARTE ÉPURÉ SANS SURCHARGE VISUELLE : CartoDB Positron */}
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
             url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
@@ -625,9 +783,9 @@ export function ParkingMap() {
             maxZoom={19}
           />
 
-          <MapController target={mapTarget} />
+          <MapController target={mapTarget} mobileTab={mobileTab} />
 
-          {/* CERCLE VISUEL DU RAYON DE RECHERCHE */}
+          {/* CERCLE DU RAYON DE RECHERCHE */}
           {filters.radiusKm !== "all" && typeof filters.radiusKm === "number" && (
             <Circle
               center={[activeReference.latitude, activeReference.longitude]}
@@ -642,26 +800,29 @@ export function ParkingMap() {
             />
           )}
 
-          {/* MARQUEUR DE POSITION UTILISATEUR */}
+          {/* MARQUEUR UTILISATEUR */}
           {userLocation && (
             <Marker
               position={[userLocation.latitude, userLocation.longitude]}
-              icon={createUserIcon()}
+              icon={USER_ICON}
             >
               <Popup className="user-popup">
                 <div style={{ padding: "8px 10px", fontSize: "13px" }}>
                   <strong>📍 Votre position</strong>
                   <p style={{ margin: "4px 0 0", color: "#64748b", fontSize: "11.5px" }}>
-                    Centre du rayon de recherche ({filters.radiusKm} km).
+                    {filters.radiusKm !== "all"
+                      ? `Rayon actif : ${filters.radiusKm} km`
+                      : "Vue : Tout Paris"}
                   </p>
                 </div>
               </Popup>
             </Marker>
           )}
 
-          {/* MARQUEURS DES PARKINGS DANS LE RAYON */}
+          {/* MARQUEURS DES PARKINGS */}
           {processedParkings.map((p) => {
             const isSelected = selectedParking?.id === p.id;
+            const isBicycleStation = p.facilityType === "bicycle-station";
             const distance = calculateDistanceKm(
               activeReference.latitude,
               activeReference.longitude,
@@ -670,15 +831,14 @@ export function ParkingMap() {
             );
             const directionsUrl = getGoogleMapsDirectionsUrl(
               p.location.latitude,
-              p.location.longitude,
-              p.name
+              p.location.longitude
             );
 
             return (
               <Marker
                 key={p.id}
                 position={[p.location.latitude, p.location.longitude]}
-                icon={createParkingIcon(isSelected)}
+                icon={getParkingIcon(isSelected, isBicycleStation)}
                 eventHandlers={{
                   click: () => {
                     setSelectedParking(p);
@@ -690,11 +850,13 @@ export function ParkingMap() {
                   },
                 }}
               >
-                {/* POPUP DESKTOP PROPRE SANS MESSAGE D'ALERTE */}
+                {/* POPUP DESKTOP PROPRE */}
                 <Popup className="custom-popup">
                   <div className="popup-body">
                     <div className="popup-header">
-                      <span className="popup-operator">{p.operator || "Ville de Paris"}</span>
+                      <span className="popup-operator">
+                        {isBicycleStation ? "Vélostation" : p.operator || "Ville de Paris"}
+                      </span>
                       <span className="popup-distance">
                         📍 à {formatDistance(distance)}
                       </span>
@@ -706,7 +868,6 @@ export function ParkingMap() {
                     <h2 className="popup-title">{p.name}</h2>
                     {p.address && <p className="popup-addr">{p.address}</p>}
 
-                    {/* Bouton Itinéraire Google Maps */}
                     <a
                       href={directionsUrl}
                       target="_blank"
@@ -722,6 +883,7 @@ export function ParkingMap() {
                         strokeWidth="2.5"
                         strokeLinecap="round"
                         strokeLinejoin="round"
+                        aria-hidden="true"
                       >
                         <polygon points="3 11 22 2 13 21 11 13 3 11" />
                       </svg>
@@ -732,7 +894,9 @@ export function ParkingMap() {
                       <div className="popup-stat">
                         <span className="stat-label">Capacité</span>
                         <strong className="stat-val">
-                          {p.capacity ? `${p.capacity} places` : "Non précisée"}
+                          {p.capacity
+                            ? `${p.capacity} places ${isBicycleStation ? "vélos" : ""}`
+                            : "Non précisée"}
                         </strong>
                       </div>
                       <div className="popup-stat">
@@ -740,6 +904,8 @@ export function ParkingMap() {
                         <strong className="stat-val">
                           {p.pricing?.oneHour
                             ? `${p.pricing.oneHour.toFixed(2)} €`
+                            : isBicycleStation
+                            ? "Abonnement vélo"
                             : "Non communiqué"}
                         </strong>
                       </div>
@@ -784,19 +950,21 @@ export function ParkingMap() {
 
         {/* BOTTOM CARD MOBILE AU CLIC SUR UN MARQUEUR */}
         {selectedParking && (
-          <aside className="mobile-bottom-card" aria-label="Détail du parking">
+          <aside className="mobile-bottom-card" aria-label="Détail du parking sélectionné">
             <button
               type="button"
               className="bottom-card-close"
               onClick={() => setSelectedParking(null)}
-              aria-label="Fermer"
+              aria-label="Fermer la fiche"
             >
               &times;
             </button>
 
             <div className="bottom-card-header">
               <span className="popup-operator">
-                {selectedParking.operator || "Ville de Paris"}
+                {selectedParking.facilityType === "bicycle-station"
+                  ? "Vélostation"
+                  : selectedParking.operator || "Ville de Paris"}
               </span>
               {selectedParking.distanceKm !== undefined && (
                 <span className="popup-distance">
@@ -816,7 +984,8 @@ export function ParkingMap() {
             <div className="bottom-card-meta">
               {selectedParking.capacity ? (
                 <span className="chip-meta">
-                  🚗 {selectedParking.capacity} places
+                  {selectedParking.facilityType === "bicycle-station" ? "🚲" : "🚗"}{" "}
+                  {selectedParking.capacity} places
                 </span>
               ) : null}
               {selectedParking.pricing?.oneHour ? (
@@ -834,8 +1003,7 @@ export function ParkingMap() {
             <a
               href={getGoogleMapsDirectionsUrl(
                 selectedParking.location.latitude,
-                selectedParking.location.longitude,
-                selectedParking.name
+                selectedParking.location.longitude
               )}
               target="_blank"
               rel="noopener noreferrer"
@@ -850,6 +1018,7 @@ export function ParkingMap() {
                 strokeWidth="2.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"
+                aria-hidden="true"
               >
                 <polygon points="3 11 22 2 13 21 11 13 3 11" />
               </svg>
@@ -864,6 +1033,7 @@ export function ParkingMap() {
             type="button"
             className="mobile-view-pill"
             onClick={() => setMobileTab(mobileTab === "map" ? "list" : "map")}
+            aria-label={mobileTab === "map" ? "Afficher sous forme de liste" : "Afficher la carte"}
           >
             {mobileTab === "map" ? (
               <>
@@ -876,6 +1046,7 @@ export function ParkingMap() {
                   strokeWidth="2.5"
                   strokeLinecap="round"
                   strokeLinejoin="round"
+                  aria-hidden="true"
                 >
                   <line x1="8" y1="6" x2="21" y2="6" />
                   <line x1="8" y1="12" x2="21" y2="12" />
@@ -897,6 +1068,7 @@ export function ParkingMap() {
                   strokeWidth="2.5"
                   strokeLinecap="round"
                   strokeLinejoin="round"
+                  aria-hidden="true"
                 >
                   <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
                   <line x1="8" y1="2" x2="8" y2="18" />
@@ -1063,6 +1235,24 @@ export function ParkingMap() {
                     }
                   >
                     Saemes
+                  </button>
+                  <button
+                    type="button"
+                    className={`filter-chip ${filters.operator === "SAGS" ? "active" : ""}`}
+                    onClick={() =>
+                      setFilters((prev) => ({ ...prev, operator: "SAGS" }))
+                    }
+                  >
+                    SAGS
+                  </button>
+                  <button
+                    type="button"
+                    className={`filter-chip ${filters.operator === "Q PARK" ? "active" : ""}`}
+                    onClick={() =>
+                      setFilters((prev) => ({ ...prev, operator: "Q PARK" }))
+                    }
+                  >
+                    Q-Park
                   </button>
                 </div>
               </div>
